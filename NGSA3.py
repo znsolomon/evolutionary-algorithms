@@ -1,4 +1,8 @@
 import numpy as np
+
+from recursive_parento_shell_with_duplicates import recursive_pareto_shell_with_duplicates
+
+
 def NSGA3(generations, cost_function, crossover_function, mutation_function,
     random_solution_function, initial_population, boundary_p, inside_p, M,
     data, passive_archive, extreme_switch, preset_bounds):
@@ -43,7 +47,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
 
     REQUIRES
 
-    recursive_pareto_shell_with_duplicates function from the emo_2013_viz repository
+    recursive_pareto_shell_with_duplicates function
     """
 
 
