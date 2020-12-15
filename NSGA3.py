@@ -4,9 +4,8 @@ from recursive_parento_shell_with_duplicates import recursive_pareto_shell_with_
 
 
 def NSGA3(generations, cost_function, crossover_function, mutation_function,
-    random_solution_function, initial_population, boundary_p, inside_p, M,
-    data, passive_archive, extreme_switch, preset_bounds):
-
+          random_solution_function, initial_population, boundary_p, inside_p, M,
+          data, passive_archive, extreme_switch, preset_bounds):
     """ [P, Y, Zsa, Pa, Ya, stats] = NSGA3(...
                                      % generations, cost_function, crossover_function, mutation_function, ...
                                      % random_solution_function, initial_population, boundary_p, inside_p, M, ...
@@ -50,7 +49,6 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     recursive_pareto_shell_with_duplicates function
     """
 
-
     hv_samp_number = 10000
     structure_flag = 1
     P = []
@@ -58,7 +56,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     start_point = 0
     if initial_population:
         P = initial_population
-        start_point = len(P)+1
+        start_point = len(P) + 1
 
     if not passive_archive:
         passive_archive = 1
@@ -69,7 +67,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     if not extreme_switch:
         extreme_switch = 1
 
-    #create structured points if aspiration points not passed in
+    # create structured points if aspiration points not passed in
     Zsa = get_structure_points(M, boundary_p, inside_p)
     pop_size = Zsa.shape[0]
 
@@ -78,12 +76,12 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
 
     print('Population size is: %d\n', pop_size)
 
-    for i in range (start_point,pop_size):
+    for i in range(start_point, pop_size):
         P[i].s = random_solution_function(data)
 
     Y = []
     for i in range(len(P)):
-        Y[i,:] =  cost_function(P[i].s, data)
+        Y[i, :] = cost_function(P[i].s, data)
 
     Pa = []
     Ya = np.array([])
@@ -94,7 +92,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
         stats.prop_non_dom = np.zeros(generations, 1)
         stats.mn = np.zeros(generations, M)
         stats.hv = np.zeros(generations, 1)
-        stats.gen_found = np.zeros(Ya.shape[0]) #track which generation a Pareto solution was discovered
+        stats.gen_found = np.zeros(Ya.shape[0])  # track which generation a Pareto solution was discovered
         hv_points = np.random.randint(0, 1, size=(hv_samp_number, M))
         hv_points = np.multiply(hv_points, np.tile(data.mxb - data.mnb, (hv_samp_number, 1)))
         hv_points = hv_points + np.tile((data.mnb, hv_samp_number, 1))
@@ -105,104 +103,103 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
             print('generation %d, pop_size %d, passive archive size %d \n', g, pop_size, len(Ya))
             min(Y)
         [P, Y, Pa, Ya, non_dom, S, Ry] = evolve(Zsa, P, Y, pop_size, cost_function, crossover_function,
-            mutation_function, structure_flag, data, Pa, Ya, passive_archive, extreme_switch, preset_bounds)
+                                                mutation_function, structure_flag, data, Pa, Ya, passive_archive,
+                                                extreme_switch, preset_bounds)
         if passive_archive:
-            stats.prop_non_dom[g] = proportion_nondominated(Y[non_dom,:], Ya)
-            stats.mn[g,:] = min(Y)
+            stats.prop_non_dom[g] = proportion_nondominated(Y[non_dom, :], Ya)
+            stats.mn[g, :] = min(Y)
             [stats.hv[g], hv_points, samps] = est_hv(data.mnb, data.mxb, Ya, hv_points, samps)
             stats.A[g].Y = Y
             stats.A[g].Ya = Ya
 
             if g % 10 == 0:
                 print('Prop dominated %f, MC samples %d, hypervolume %f\n',
-                        stats.prop_non_dom[g], samps + hv_samp_number, stats.hv[g])
+                      stats.prop_non_dom[g], samps + hv_samp_number, stats.hv[g])
 
     return [P, Y, Zsa, Pa, Ya, stats]
 
-# -----------------------
+
 def est_hv(mnb, mxb, Ya, hv_points, samps):
-    [hv_samp_number, m] = (hv_points).shape
+    [hv_samp_number, m] = hv_points.shape
 
     to_remove = np.array([])
-    for i in range((hv_points).shape):
-        if sum(sum(Ya <= np.tile(hv_points[i,:], (Ya.shape[0], 1), 2) == m)) > 0:
+    for i in range(hv_points.shape):
+        if sum(sum(Ya <= np.tile(hv_points[i, :], (Ya.shape[0], 1), 2) == m)) > 0:
             to_remove = np.append(to_remove, i)
 
-    hv_points[to_remove,:]=[]
+    hv_points[to_remove, :] = []
     removed = len(to_remove)
 
-    #estimate hypervolume
+    # estimate hypervolume
     hv = (hv_samp_number - removed) / (samps + hv_samp_number)
 
-    #update number dominated
+    # update number dominated
     samps = samps + removed
 
-    #refill random samps to 1000
-    new_points = np.random.randint(0,1,size=(removed, m))
+    # refill random samps to 1000
+    new_points = np.random.randint(0, 1, size=(removed, m))
     new_points = np.multiply(new_points, np.tile(mxb - mnb, (removed, 1)))
     new_points = new_points + np.tile(mnb, (removed, 1))
     hv_points = np.append(hv_points, new_points)
 
-    return (hv, hv_points, samps)
+    return hv, hv_points, samps
 
-# -----------------------
+
 def proportion_nondominated(Y, Ya):
     [n, m] = Y.shape
     p = 0
     for i in range(n):
-        ge = sum(sum(Ya <= np.tile(Y[i,:], (Ya.shape[0], 1), 2) == m))
+        ge = sum(sum(Ya <= np.tile(Y[i, :], (Ya.shape[0], 1), 2) == m))
         if ge > 0:
-            if sum(sum(Ya == np.tile(Y[i,:], (Ya.shape[0], 1), 2) == m)) < ge: # at least one must dominate
+            if sum(sum(Ya == np.tile(Y[i, :], (Ya.shape[0], 1), 2) == m)) < ge:  # at least one must dominate
                 p = p + 1
     p = (n - p) / n
 
     return p
 
-# -----------------------
-def get_structure_points(M, boundary_p, inside_p):
 
+def get_structure_points(M, boundary_p, inside_p):
     Zs = get_simplex_samples(M, boundary_p)
     Zs_inside = get_simplex_samples(M, inside_p)
-    Zs_inside = Zs_inside / 2 # retract
-    Zs_inside = Zs_inside + 0.5 / M # project inside
+    Zs_inside = Zs_inside / 2  # retract
+    Zs_inside = Zs_inside + 0.5 / M  # project inside
 
     Zs = np.append(Zs, Zs_inside)
 
     return Zs
 
-# -----------------------
-def fill_sample(tmp, lb , lambda_index, layer_processing, M):
 
-    tmp[layer_processing] = lb (lambda_index)
-    if (layer_processing < M - 1):
+def fill_sample(tmp, lb, lambda_index, layer_processing, M):
+    tmp[layer_processing] = lb(lambda_index)
+    if layer_processing < M - 1:
         already_used = sum(tmp[0:layer_processing])
-        valid_indices = np.nonzero(lb <= 1-already_used + np.finfo(float).eps) # identify valid fillers that can be used
+        valid_indices = np.nonzero(
+            lb <= 1 - already_used + np.finfo(float).eps)  # identify valid fillers that can be used
         tmp_processed = np.array([])
         for j in range(len(valid_indices)):
             tmp_new = tmp
-            recursive_matrix = fill_sample(tmp_new, lb , j, layer_processing+1, M)
+            recursive_matrix = fill_sample(tmp_new, lb, j, layer_processing + 1, M)
             tmp_processed = np.append(tmp_processed, recursive_matrix)
-    else: # M-1th layer being processed so last element has to complete sum
+    else:  # M-1th layer being processed so last element has to complete sum
         tmp_processed = tmp
         tmp_processed[M] = 1 - sum(tmp[0:M - 1])
 
     return tmp_processed
 
-# -----------------------
+
 def get_simplex_samples(M, p):
-
-    lb = np.linspace(0,p)
+    lb = np.linspace(0, p)
     lb = lb / p
-    Zs =[]
+    Zs = []
 
-    for i in range(0,p+1): # for lambda in turn
-        tmp = np.zeros(1, M) # initialise holder for reference point
-        tmp = fill_sample(tmp, lb , i, 1, M)
+    for i in range(0, p + 1):  # for lambda in turn
+        tmp = np.zeros(1, M)  # initialise holder for reference point
+        tmp = fill_sample(tmp, lb, i, 1, M)
         Zs = np.append(Zs, tmp)
 
     return Zs
 
-# -----------------------
+
 def nondominated_sort(Ry, extreme_switch):
     F = np.array([])
     [N, M] = Ry.shape
@@ -213,32 +210,33 @@ def nondominated_sort(Ry, extreme_switch):
     # strip out individual minimises to protect
     if extreme_switch:
         I = np.nonzero(P_ranks == 1)
-        indices = min(Ry[I,:], [], 1)[1:]
+        indices = min(Ry[I, :], [], 1)[1:]
         P_ranks[I[indices]] = 0
     # now remove duplicates
-    for i in range(N-1):
-        vec = np.tile(Ry[i,:], (N - i, 1))
-        eq_v = vec == Ry[i + 1:,:]
+    for i in range(N - 1):
+        vec = np.tile(Ry[i, :], (N - i, 1))
+        eq_v = vec == Ry[i + 1:, :]
         ind = np.nonzero(sum(eq_v, 2) == M)
-        P_ranks[ind + i] = m_value # move duplicates to worst shell
+        P_ranks[ind + i] = m_value  # move duplicates to worst shell
 
     for i in range(max(P_ranks)):
         F[i + 1].I = np.nonzero(P_ranks == i)
 
     return [F, raw]
-# -----------------------
-def update_passive(Pa, Ya, Qy, Q):
 
+
+def update_passive(Pa, Ya, Qy, Q):
     for i in range(len(Q)):
-        if sum(sum(Ya <= np.tile(Qy[i,:], (Ya.shape[0], 1), 2) == Ya.shape[1])) == 0: # if not dominated
-            indices = sum(Ya >= np.tile(Qy[i,:], (Ya.shape[0], 1), 2)) == Ya.shape[1]
-            Ya[indices,:]=[]
+        if sum(sum(Ya <= np.tile(Qy[i, :], (Ya.shape[0], 1), 2) == Ya.shape[1])) == 0:  # if not dominated
+            indices = sum(Ya >= np.tile(Qy[i, :], (Ya.shape[0], 1), 2)) == Ya.shape[1]
+            Ya[indices, :] = []
             Pa[indices] = []
-            Ya = np.append(Ya,Qy[i,:])
+            Ya = np.append(Ya, Qy[i, :])
             Pa = [Pa, Q(i)]
 
     return [Pa, Ya]
-# -----------------------
+
+
 def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
            structure_flag, data, Pa, Ya, passive_archive, extreme_switch, preset_bounds):
     # Za Aspiration points
@@ -250,24 +248,24 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
     Q = crossover_function(P, data)
     Q = mutation_function(Q, data)
     # EVALUATE CHILDREN
-    Qy = [] # could preallocate given number of objectives
+    Qy = []  # could preallocate given number of objectives
     for j in range(len(Q)):
-        Qy[j,:] = cost_function(Q(j).s, data)
+        Qy[j, :] = cost_function(Q(j).s, data)
 
     if passive_archive:
         [P_ranks] = recursive_pareto_shell_with_duplicates(Qy, 0)
         to_compare = np.nonzero(P_ranks == 0)
         for i in range(to_compare.shape[0]):
-            [Pa, Ya] = update_passive(Pa, Ya, Qy[to_compare,:], Q(to_compare))
+            [Pa, Ya] = update_passive(Pa, Ya, Qy[to_compare, :], Q(to_compare))
 
     # MERGE POPULATIONS
     R = [P, Q]
-    Ry = np.append(Y,Qy)
+    Ry = np.append(Y, Qy)
     # TRUNCATE POPULATION TO GENERATE PARENTS FOR NEXT GENERATION
     [F, raw] = nondominated_sort(Ry, extreme_switch)
     # each element of F contains the indices of R of the respective shell
     nd = sum(raw == extreme_switch)
-    nd = np.linspace(0,min(nd, Y.shape[0]))
+    nd = np.linspace(0, min(nd, Y.shape[0]))
 
     i = 1
     while len(S) < N:
@@ -278,29 +276,28 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
     Yp = []
     if len(S) != N:
         indices_used = []
-        for j in range(i-2):
+        for j in range(i - 2):
             indices_used = np.append(indices_used, F[j].I)
             P = [P, R[F[j].I]]
-            Yp = np.append(Yp, Ry[F[j].I,:])
+            Yp = np.append(Yp, Ry[F[j].I, :])
 
-        Fl = F(i - 1).I # elements of this last shell now need to be chosen
-        K = N - len(P) # specifically K elements
+        Fl = F(i - 1).I  # elements of this last shell now need to be chosen
+        K = N - len(P)  # specifically K elements
         [Yn, Zr] = normalise(S, Ry, Zsa, structure_flag, preset_bounds, data)
 
         [index_of_closest, distance_to_closest] = associate(S, Yn, Zr)
         Zr_niche_count = get_niche_count(Zr, index_of_closest(S[0:len(P)]))
         [P, Y, indices_used] = niching(K, Zr_niche_count, index_of_closest, distance_to_closest,
-            Fl, P, R, Yp, Ry, indices_used)
+                                       Fl, P, R, Yp, Ry, indices_used)
 
     else:
         P = R[S]
-        Y = Ry[S,:]
+        Y = Ry[S, :]
 
     return [P, Y, Pa, Ya, nd, S, Ry]
 
-# ----------
-def normalise(S, Y, Zsa, structure_flag, preset_bounds, data):
 
+def normalise(S, Y, Zsa, structure_flag, preset_bounds, data):
     # OUTPUTS
     # Yn = normalised objectives
     if preset_bounds == 1:
@@ -308,11 +305,11 @@ def normalise(S, Y, Zsa, structure_flag, preset_bounds, data):
         ideal = data.l_bound
         Yn = Y - np.tile(ideal, (Y.shape[0], 1))
         a = np.ones(np.divide(data.u_bound.shape,
-            ((data.u_bound - data.l_bound) * (sum(data.u_bound) - sum(data.l_bound)))))
+                              ((data.u_bound - data.l_bound) * (sum(data.u_bound) - sum(data.l_bound)))))
     else:
         # 'no preset'
-        M = Y.shape[1:] # get number of objectives
-        ideal = min(Y[S, :]) # initialise ideal point
+        M = Y.shape[1:]  # get number of objectives
+        ideal = min(Y[S, :])  # initialise ideal point
 
         Yn = Y - np.tile(ideal, (Y.shape[0], 1))
 
@@ -325,35 +322,35 @@ def normalise(S, Y, Zsa, structure_flag, preset_bounds, data):
         scalarising_indices = np.zeros(1, M)
         for j in range(M):
             scalariser = np.ones(len(S), M)
-            scalariser[:,j] = 0
-            scalarised = sum(np.multiply(Yn[S,:], scalariser), 2)
+            scalariser[:, j] = 0
+            scalarised = sum(np.multiply(Yn[S, :], scalariser), 2)
             # ensure matrix isn't singular by excluding elements already selected
-            for k in range(j-1):
-                vec = Yn[S(scalarising_indices[k]),:] # vector of objective values
+            for k in range(j - 1):
+                vec = Yn[S(scalarising_indices[k]), :]  # vector of objective values
                 rep_vec = np.tile(vec, (len(S), 1))
-                res = Yn[S,:] == rep_vec
+                res = Yn[S, :] == rep_vec
                 scalarised[sum(res, 2) == M] = np.inf
 
             i = min(scalarised)[1:]
-            #identify solution on the ith axis
-            #(i.e. minimising the other objectives as much as possible)
+            # identify solution on the ith axis
+            # (i.e. minimising the other objectives as much as possible)
             nadir[j] = Yn(i, j)
             scalarising_indices[j] = i
 
-        X = Yn[S[scalarising_indices],:]
+        X = Yn[S[scalarising_indices], :]
 
-        a = np.linalg.solve(X, np.ones(M, 1)) # solve system of linear equations to get weights
+        a = np.linalg.solve(X, np.ones(M, 1))  # solve system of linear equations to get weights
 
-    Yn = np.multiply(Yn, np.tile(a, (Yn.shape[0], 1))) # rescale
+    Yn = np.multiply(Yn, np.tile(a, (Yn.shape[0], 1)))  # rescale
 
-    if (structure_flag):
+    if structure_flag:
         Zr = Zsa
     else:
         Zr = np.multiply(Zsa, np.tile(a, (Zsa.shape[0], 1)))
 
     return [Yn, Zr]
 
-# ----------
+
 def associate(S, Yn, Zr):
     # S = indices of members
     # Yn = normalised objectives
@@ -364,38 +361,36 @@ def associate(S, Yn, Zr):
     D = np.zeros(Zr.shape[0], 1)
     for i in range(len(S)):
         for j in range(Zr.shape[0]):
-            D[j] = np.linalg.norm(Yn[S[i],:].getH() - (Zr[j,:]*Yn[S[i],:].getH() * Zr[j,:].getH())
-                / np.linalg.norm(Zr[j,:].getH(), 2) ^ 2, 2)
+            D[j] = np.linalg.norm(Yn[S[i], :].getH() - (Zr[j, :] * Yn[S[i], :].getH() * Zr[j, :].getH())
+                                  / np.linalg.norm(Zr[j, :].getH(), 2) ^ 2, 2)
         [distance_to_closest[S[i]], index_of_closest[S[i]]] = min(D)
-
 
     return [index_of_closest, distance_to_closest]
 
-# ------------
-def niching(K, Zr_niche_count, index_of_closest, distance_to_closest, Fl, P, R, Yp, Y, iu):
 
+def niching(K, Zr_niche_count, index_of_closest, distance_to_closest, Fl, P, R, Yp, Y, iu):
     # returns indices of final selected population
 
     k = 1
 
     while k <= K:
         [j_min] = min(Zr_niche_count)
-        I = np.nonzero(Zr_niche_count == j_min) # get indices of Zr elements which have smallest niche count
+        I = np.nonzero(Zr_niche_count == j_min)  # get indices of Zr elements which have smallest niche count
         j_bar = np.random.permutation(len(I))
-        j_bar = I[j_bar[1]] # get random index of element of Zr which has lowest niche count
+        j_bar = I[j_bar[1]]  # get random index of element of Zr which has lowest niche count
         # get members of Fl which have the j_bar element of Zr as their guide
         Ij_bar = np.nonzero(index_of_closest(Fl) == j_bar)
-        if Ij_bar: # is j_bar index in Fl?
-            if (Zr_niche_count(j_bar) == 0): # no associated P member with ref point
-                chosen_index = min(distance_to_closest(Fl(Ij_bar)))[1:] # get index of closest matching member of Fl
+        if Ij_bar:  # is j_bar index in Fl?
+            if Zr_niche_count(j_bar) == 0:  # no associated P member with ref point
+                chosen_index = min(distance_to_closest(Fl(Ij_bar)))[1:]  # get index of closest matching member of Fl
             else:
                 indices = np.random.permutation(len(Ij_bar))
                 chosen_index = indices[1]
-            P = [P, R(Fl(Ij_bar[chosen_index]))] # add to P
-            Yp = np.append(Yp,Y[Fl[Ij_bar[chosen_index]],:])
+            P = [P, R(Fl(Ij_bar[chosen_index]))]  # add to P
+            Yp = np.append(Yp, Y[Fl[Ij_bar[chosen_index]], :])
             Zr_niche_count[j_bar] = Zr_niche_count(j_bar) + 1
-            iu = np.append(iu,Fl[Ij_bar[chosen_index]])
-            Fl[Ij_bar[chosen_index]] = [] # remove from consideration next time
+            iu = np.append(iu, Fl[Ij_bar[chosen_index]])
+            Fl[Ij_bar[chosen_index]] = []  # remove from consideration next time
             k = k + 1
         else:
             Zr_niche_count[j_bar] = np.inf
@@ -403,9 +398,8 @@ def niching(K, Zr_niche_count, index_of_closest, distance_to_closest, Fl, P, R, 
 
     return [P, Yp, iu]
 
-# ----------
-def get_niche_count(Zr, indices):
 
+def get_niche_count(Zr, indices):
     # indices =
     niche_count = np.zeros(len(Zr), 1)
     for i in range(len(niche_count)):
