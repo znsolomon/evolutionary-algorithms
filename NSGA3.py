@@ -5,7 +5,7 @@ from recursive_parento_shell_with_duplicates import recursive_pareto_shell_with_
 
 def NSGA3(generations, cost_function, crossover_function, mutation_function,
           random_solution_function, initial_population, boundary_p, inside_p, M,
-          data, passive_archive, extreme_switch, preset_bounds):
+          data, passive_archive, extreme_switch):
     """ [P, Y, Zsa, Pa, Ya, stats] = NSGA3(...
                                      % generations, cost_function, crossover_function, mutation_function, ...
                                      % random_solution_function, initial_population, boundary_p, inside_p, M, ...
@@ -61,9 +61,6 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     if not passive_archive:
         passive_archive = 1
 
-    if not preset_bounds:
-        preset_bounds = 0
-
     if not extreme_switch:
         extreme_switch = 1
 
@@ -104,7 +101,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
             min(Y)
         [P, Y, Pa, Ya, non_dom, S, Ry] = evolve(Zsa, P, Y, pop_size, cost_function, crossover_function,
                                                 mutation_function, structure_flag, data, Pa, Ya, passive_archive,
-                                                extreme_switch, preset_bounds)
+                                                extreme_switch)
         if passive_archive:
             stats.prop_non_dom[g] = proportion_nondominated(Y[non_dom, :], Ya)
             stats.mn[g, :] = min(Y)
@@ -238,7 +235,7 @@ def update_passive(Pa, Ya, Qy, Q):
 
 
 def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
-           structure_flag, data, Pa, Ya, passive_archive, extreme_switch, preset_bounds):
+           structure_flag, data, Pa, Ya, passive_archive, extreme_switch):
     # Za Aspiration points
     # Zr reference points
     # P structure of parents
@@ -254,7 +251,7 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
 
     if passive_archive:
         [P_ranks] = recursive_pareto_shell_with_duplicates(Qy, 0)
-        to_compare = np.nonzero(P_ranks == 0)
+        to_compare = np.argwhere(P_ranks == 0)
         for i in range(to_compare.shape[0]):
             [Pa, Ya] = update_passive(Pa, Ya, Qy[to_compare, :], Q(to_compare))
 
@@ -283,7 +280,7 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
 
         Fl = F(i - 1).I  # elements of this last shell now need to be chosen
         K = N - len(P)  # specifically K elements
-        [Yn, Zr] = normalise(S, Ry, Zsa, structure_flag, preset_bounds, data)
+        [Yn, Zr] = normalise(S, Ry, Zsa, structure_flag, data)
 
         [index_of_closest, distance_to_closest] = associate(S, Yn, Zr)
         Zr_niche_count = get_niche_count(Zr, index_of_closest(S[0:len(P)]))
@@ -297,49 +294,42 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
     return [P, Y, Pa, Ya, nd, S, Ry]
 
 
-def normalise(S, Y, Zsa, structure_flag, preset_bounds, data):
+def normalise(S, Y, Zsa, structure_flag):
     # OUTPUTS
     # Yn = normalised objectives
-    if preset_bounds == 1:
-        # 'preset'
-        ideal = data.l_bound
-        Yn = Y - np.tile(ideal, (Y.shape[0], 1))
-        a = np.ones(np.divide(data.u_bound.shape,
-                              ((data.u_bound - data.l_bound) * (sum(data.u_bound) - sum(data.l_bound)))))
-    else:
-        # 'no preset'
-        M = Y.shape[1:]  # get number of objectives
-        ideal = min(Y[S, :])  # initialise ideal point
+    # Assumes no preset bounds
+    M = Y.shape[1:]  # get number of objectives
+    ideal = min(Y[S, :])  # initialise ideal point
 
-        Yn = Y - np.tile(ideal, (Y.shape[0], 1))
+    Yn = Y - np.tile(ideal, (Y.shape[0], 1))
 
-        """ FROM PAPER:
-        Thereafter, the extreme point(zi, max) in each(ith) objective axis is identified
-        by finding the solution(x ? St) that makes the corresponding achievement
-        scalarizing function(formed with f_i (x) and a weight vector close to ith objective axis) minimum.
-        """
-        nadir = np.zeros(1, M)
-        scalarising_indices = np.zeros(1, M)
-        for j in range(M):
-            scalariser = np.ones(len(S), M)
-            scalariser[:, j] = 0
-            scalarised = sum(np.multiply(Yn[S, :], scalariser), 2)
-            # ensure matrix isn't singular by excluding elements already selected
-            for k in range(j - 1):
-                vec = Yn[S(scalarising_indices[k]), :]  # vector of objective values
-                rep_vec = np.tile(vec, (len(S), 1))
-                res = Yn[S, :] == rep_vec
-                scalarised[sum(res, 2) == M] = np.inf
+    """ FROM PAPER:
+    Thereafter, the extreme point(zi, max) in each(ith) objective axis is identified
+    by finding the solution(x ? St) that makes the corresponding achievement
+    scalarizing function(formed with f_i (x) and a weight vector close to ith objective axis) minimum.
+    """
+    nadir = np.zeros(1, M)
+    scalarising_indices = np.zeros(1, M)
+    for j in range(M):
+        scalariser = np.ones(len(S), M)
+        scalariser[:, j] = 0
+        scalarised = sum(np.multiply(Yn[S, :], scalariser), 2)
+        # ensure matrix isn't singular by excluding elements already selected
+        for k in range(j - 1):
+            vec = Yn[S(scalarising_indices[k]), :]  # vector of objective values
+            rep_vec = np.tile(vec, (len(S), 1))
+            res = Yn[S, :] == rep_vec
+            scalarised[sum(res, 2) == M] = np.inf
 
-            i = min(scalarised)[1:]
-            # identify solution on the ith axis
-            # (i.e. minimising the other objectives as much as possible)
-            nadir[j] = Yn(i, j)
-            scalarising_indices[j] = i
+        i = min(scalarised)[1:]
+        # identify solution on the ith axis
+        # (i.e. minimising the other objectives as much as possible)
+        nadir[j] = Yn(i, j)
+        scalarising_indices[j] = i
 
-        X = Yn[S[scalarising_indices], :]
+    X = Yn[S[scalarising_indices], :]
 
-        a = np.linalg.solve(X, np.ones(M, 1))  # solve system of linear equations to get weights
+    a = np.linalg.solve(X, np.ones(M, 1))  # solve system of linear equations to get weights
 
     Yn = np.multiply(Yn, np.tile(a, (Yn.shape[0], 1)))  # rescale
 

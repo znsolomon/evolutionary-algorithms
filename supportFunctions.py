@@ -36,9 +36,9 @@ def staff_total_dissatisfaction(x, p, level, increment_number):
     # p: Matrix of staff module preference
     # level: Amount of dissatisfaction to measure
     dissatisfactions = []
-    for i in range(x.shape[0]):  # For each teacher
+    for j in range(x.shape[1]):  # For each teacher
         dis_inc = 0
-        for j in range(x.shape[1]):  # For each module
+        for i in range(x.shape[0]):  # For each module
             if p[i, j] >= level:
                 dis_inc += p[i, j] * x[i, j]
         dissatisfactions.append(dis_inc)
@@ -51,8 +51,8 @@ def average_staff_per_module(x):
     # Gets average number of staff teaching each module
     # x: Matrix of which staff are teaching which modules
     sum_staff = 0
-    for j in range(x.shape[1]):  # For each module
-        sum_staff += sum(x[:, j] != 0)
+    for i in range(x.shape[0]):  # For each module
+        sum_staff += sum(x[i, :] != 0)
     return sum_staff / x.shape[1]
     # Original code:
     # return sum(sum(x != 0))/(x,1).shape
@@ -77,19 +77,30 @@ def cost(s, data):
     W - combined matrix of staff workloads
     """
     X = s.X / np.tile(data.increment_number, (1, data.n))
-    y = np.zeros(1, 7)
-    w = get_combined_workload(X, s.C, data.w_star, data.c_matrix, data.d_matrix, data.p_matrix, data.alpha, data.T)
+    y = np.zeros(7)
+    w = get_combined_workload(X, s.C, data.workload, data.c_matrix, data.d_matrix, data.p_matrix, data.alpha, data.t)
     y[0] = sum(w) / sum(data.h)
     y[1] = unbalanced_workload(w, data.h)
-    y[2] = staff_total_dissatisfaction(X, data.P, 1, data.increment_number)
-    y[3] = staff_dissatisfaction(X, data.P, 2, data.increment_number)
+    y[2] = staff_total_dissatisfaction(X, data.pref, 1, data.increment_number)
+    y[3] = staff_dissatisfaction(X, data.pref, 2, data.increment_number)
     y[4] = average_staff_per_module(X)
-    y[5] = peak_load(X, s.C, data.h, data.c_matrix, data.d_matrix, data.p_matrix, data.t_matrix, data.alpha, data.T)
-    y[6] = variation_from_previous_year_teach(X, data.R / 100, data.increment_number)
+    y[5] = peak_load(X, s.C, data.h, data.c_matrix, data.d_matrix, data.p_matrix, data.t_matrix, data.alpha, data.t)
+    y[6] = variation_from_previous_year_teach(X, data.r / 100, data.increment_number)
 
     if data.constraints_on:
-        for i in range(len(data.m)):
-            if sum(s.X[i, :] > 0) < data.module_minimum[i]:  # Teaching load should be positive
+        for i in range(data.m):  # For each module
+            if sum(s.C[i, :]) != 1:  # Total co-ordination value of each module must equal 1
+                y = y + (data.penalties[0] / abs(sum(s.C[i, :]) - 1))  # Penalise
+            if sum(s.X[i, :]) != 1:  # Whole module must be taught
+                y = y + (data.penalties[1] * abs(sum(s.X[i, :]) - 1))  # Penalise
+            for j in range(data.n):  # For each staff member
+                if s.X[i, j] < 0:   # Staff cannot teach less than 0 or more than 100% of a module
+                    y = y + (data.penalties[2] * abs(s.X[i, j]))
+                elif s.X[i, j] > 1:
+                    y = y + (data.penalties[2] * abs(s.X[i, j]) - 1)
+        """
+        Old code:
+            if sum(s.X[i, :] > 0) < data.module_minimum[i]:  # Every module should be taught properly
                 y[data.objective_mask] = \
                     y[data.objective_mask] + data.mxb * (data.module_minimum[i] - sum(s.X[i, :] > 0))
             # Total teaching allocation of module shouldn't be greater than module maximum
@@ -106,6 +117,7 @@ def cost(s, data):
         # penalise assignment to prevent marked mappings
         temp = sum(sum(s.X[data.prevent == 1]))
         y[data.objective_mask] = y[data.objective_mask]+ temp * data.mxb
+        """
 
     return y
 
@@ -140,46 +152,32 @@ def swap_mutation(P, data):
             child = P[i].s
             rm = np.random.permutation(data.m)  # get a module at random
             rm = rm[1]
-            if data.module_mask(rm) == 1:
-                r = np.random.permutation(data.n)
-                child.C[rm, :] = 0
-                child.X[rm, :] = 0
-                child.C[rm, r[1]] = 1  # Swap staff member involved
-                child.X[rm, r[1]] = data.increment_number[rm] - data.external_allocation[rm]
-            else:
-                I = np.argwhere(child.X[rm, :] > 0)  # Get indices where teaching is happening
-                r = np.random.permutation(len(I))
-                I = I[r]  # Randomly permute
-                if I:  # some delivery internally
-                    if np.random.rand() < 0.5:
-                        child.X[rm[1], I[1]] = child.X[rm[1], I[1]] - 1
-                        if len(r) < data.module_mask(rm):  # can add extra staff
-                            rn = np.random.permutation(data.n)  # Allocate to a random other
-                            child.X[rm[1], rn[1]] = child.X[rm[1], rn[1]] + 1
-                            # Always assign coordination to staff teaching most of module
-                            child.C[rm[1], :] = 0
-                            index = max(child.X[rm[1], :])[1:]
-                            child.C[rm[1], index] = 1
-                        else:  # can only shift between staff
-                            child.X[rm[1], I[2]] = child.X[rm[1], I[2]] + 1
-                            # always assign coordination to staff teaching most of module
-                            child.C[rm[1], :] = 0
-                            index = max(child.X[rm[1], :])[1:]
-                            child.C[rm[1], index] = 1
-                    else:  # randomly remove teaching of module from one member of staff and give to another
-                        rn = np.random.permutation(data.n)  # allocate to a random other
-                        if rn[1] == I[1]:
-                            rn = rn[2]
-                        else:
-                            rn = rn[1]
-                        child.X[rm[1], rn] = child.X[rm[1], rn] + child.X[rm[1], I[1]]
-                        child.X[rm[1], I[1]] = 0
-                        child.C[rm[1], rn] = max(child.C[rm[1], I[1]], child.C[rm[1], rn])
-                        child.C[rm[1], I[1]] = 0
-                else:  # where no teaching due to external delivery swap coordinator
+            I = np.argwhere(child.X[rm, :] > 0)  # Get indices where teaching is happening
+            r = np.random.permutation(len(I))
+            I = I[r]  # Randomly permute
+            if I:  # some delivery internally
+                if np.random.rand() < 0.5:
+                    child.X[rm[1], I[1]] = child.X[rm[1], I[1]] - 1
+                    rn = np.random.permutation(data.n)  # Allocate to a random other
+                    child.X[rm[1], rn[1]] = child.X[rm[1], rn[1]] + 1
+                    # Always assign coordination to staff teaching most of module
                     child.C[rm[1], :] = 0
-                    index = np.random.permutation(data.n)
-                    child.C[rm[1], index[1]] = 1
+                    index = max(child.X[rm[1], :])[1:]
+                    child.C[rm[1], index] = 1
+                else:  # randomly remove teaching of module from one member of staff and give to another
+                    rn = np.random.permutation(data.n)  # allocate to a random other
+                    if rn[1] == I[1]:
+                        rn = rn[2]
+                    else:
+                        rn = rn[1]
+                    child.X[rm[1], rn] = child.X[rm[1], rn] + child.X[rm[1], I[1]]
+                    child.X[rm[1], I[1]] = 0
+                    child.C[rm[1], rn] = max(child.C[rm[1], I[1]], child.C[rm[1], rn])
+                    child.C[rm[1], I[1]] = 0
+            else:  # where no teaching due to external delivery swap coordinator
+                child.C[rm[1], :] = 0
+                index = np.random.permutation(data.n)
+                child.C[rm[1], index[1]] = 1
             P[i].s = child
     P = teaching_constraints(P, data)
     return P
@@ -204,39 +202,5 @@ def teaching_constraints(P, data):
                     if s.X[j, live[k[1]]] > data.preallocated_X[j, live[k[1]]]:
                         s.X[j, live[k[1]]] = s.X[j, live[k[1]]] - 1
                     total_load = sum(s.X[j, :]) + data.external_allocation[j]
-
-        # ensure maximum isn't breached on projects
-        for j in data.limited_module_indices:
-            I = np.argwhere(s.X[j, :] - data.limited_X[j,:] > 0)  # identify where > max teaching load
-            if I:  # some maximum teaching breached
-                s.X[j, I] = data.limited_X[j, I]
-                total_load = sum(s.X[j, :])+data.external_allocation[j]
-                while total_load < (data.increment_number[j]):
-                    live = np.argwhere((s.X[j, :] > 0) + (s.X[j, :] < data.limited_X[j, :]) == 2)
-                    if not live:
-                        live = np.argwhere(s.X[j, :] < data.limited_X[j, :])
-                    k = np.random.permutation(len(live))
-                    s.X[j, live[k[1]]] = s.X[j, live[k[1]]] + 1
-                    total_load = sum(s.X[j, :]) + data.external_allocation[j]
-
-        # ensure duplicated modules are co-taught
-        for j in range(len(data.duplicated_module_indices)):
-            I = data.duplicated_module_indices[j]
-            s.X[I[2], :] = data.increment_number[I[2]] * s.X[I[1], :] / data.increment_number[I[1]]
-            s.C[I[2], :] = s.C[I[1], :]
-
-        for j in range(len(data.duplicated_coord_module_indices)):
-            I = data.duplicated_coord_module_indices[j]
-            s.C[I[2], :] = s.C[I[1], :]
-
-        # ensure coordinator is a teacher
-        for j in data.limited_module_indices:
-            I = np.argwhere(s.X[j, :] > 0)
-            if I:
-                if sum(s.C[j, I]) == 0:  # teacher isn't coordinator
-                    s.C[j, :] = 0
-                    r = np.random.permutation(len(I))
-                    s.C[j, I[r[1]]] = 1
-
         P[i].s = s
     return P
