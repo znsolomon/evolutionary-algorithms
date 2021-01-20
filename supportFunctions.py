@@ -1,5 +1,7 @@
 import numpy as np
 
+from main import Solution
+
 
 def get_combined_workload(X, C, w_star, c_matrix, d_matrix, p_matrix, alpha, T):
     # Calculates the total workload for each staff member and puts in an array
@@ -181,6 +183,20 @@ def swap_mutation(P, data):
             P[i].s = child
     P = teaching_constraints(P, data)
     return P
+
+
+def swap_random(data):
+    X = np.zeros(data.m, data.n)
+    C = np.zeros(data.m, data.n)
+    # Assign coordinations randomly
+    for x, y in np.ndindex(C.shape()):
+        C[x, y] = np.random.randint(0, 1)
+    # Assign teaching proportions randomly
+    for x, y in np.ndindex(X.shape()):
+        X[x, y] = np.random.randint(0, 100)
+
+    x = Solution(X, C)
+    return x
 
 
 def teaching_constraints(P, data):
