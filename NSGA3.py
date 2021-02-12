@@ -2,6 +2,7 @@ import numpy as np
 
 from recursive_parento_shell_with_duplicates import recursive_pareto_shell_with_duplicates
 
+
 class Statistics:
     def __init__(self):
         self.prop_non_dom = None
@@ -12,7 +13,7 @@ class Statistics:
 
 def NSGA3(generations, cost_function, crossover_function, mutation_function,
           random_solution_function, initial_population, boundary_p, inside_p, M,
-          data, passive_archive, extreme_switch):
+          data, passive_archive, extreme_switch=0):
     """ [P, Y, Zsa, Pa, Ya, stats] = NSGA3(...
                                      % generations, cost_function, crossover_function, mutation_function, ...
                                      % random_solution_function, initial_population, boundary_p, inside_p, M, ...
@@ -68,9 +69,6 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     if not passive_archive:
         passive_archive = 1
 
-    if not extreme_switch:
-        extreme_switch = 1
-
     # create structured points if aspiration points not passed in
     Zsa = get_structure_points(M, boundary_p, inside_p)
     pop_size = Zsa.shape[0]
@@ -94,8 +92,10 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     if passive_archive == 1:
         P_ranks = recursive_pareto_shell_with_duplicates(Y, 0)
         # P_ranks: pareto-shell rankings of each solution (which shell they are in)
-        Ya = Y[np.where(P_ranks == 0), :]
-        Pa = P[np.where(P_ranks == 0)[0]]
+        nondom = np.argwhere(P_ranks == 0)
+        nondom = [i[0] for i in nondom]
+        Ya = Y[nondom]
+        Pa = P[nondom]
         stats.prop_non_dom = np.zeros((generations, 1))
         stats.mn = np.zeros((generations, M))
         stats.hv = np.zeros((generations, 1))
@@ -111,7 +111,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
             # min(Y)  --> What is this line doing?
         [P, Y, Pa, Ya, non_dom, S, Ry] = evolve(Zsa, P, Y, pop_size, cost_function, crossover_function,
                                                 mutation_function, structure_flag, data, Pa, Ya, passive_archive,
-                                                extreme_switch)
+                                                extreme_switch, pop_size)
         if passive_archive:
             stats.prop_non_dom[g] = proportion_nondominated(Y[non_dom, :], Ya)
             stats.mn[g, :] = min(Y)
@@ -207,10 +207,26 @@ def get_simplex_samples(M, p):
     return Zs
 
 
-def nondominated_sort(Ry, extreme_switch):
+def nondominated_sort(Ry, extreme_switch, pop_size):  # Sorts Ry by shell order, ignoring duplicates
+    # extreme_switch =1 unless modified
     F = np.array([])
+    # Eliminate duplicates from Ry
+    Ry = np.unique(Ry, axis=0)
     [N, M] = Ry.shape
     P_ranks = recursive_pareto_shell_with_duplicates(Ry, extreme_switch)
+    # Sort P_ranks into shell order
+    m_value = int(max(P_ranks))  # Highest shell number
+    P_indexed = np.empty((len(P_ranks), 2))
+    for i in range(len(P_ranks)):
+        P_indexed[i] = [P_ranks[i], i]
+    P_sorted = P_indexed.sort(axis=0)
+    print(P_sorted)
+    P_sorted = np.empty((m_value, 1))
+    for shell in range(m_value):
+        shell_indexes = np.argwhere(P_ranks == shell)
+        np.concatenate(P_sorted[shell], shell_indexes)
+
+    print(P_sorted)
     raw = P_ranks
     # identify and strip duplicates
     m_value = max(P_ranks) + 1
@@ -232,20 +248,8 @@ def nondominated_sort(Ry, extreme_switch):
     return [F, raw]
 
 
-def update_passive(Pa, Ya, Qy, Q):
-    for i in range(len(Q)):
-        if sum(sum(Ya <= np.tile(Qy[i, :], (Ya.shape[0], 1), 2) == Ya.shape[1])) == 0:  # if not dominated
-            indices = sum(Ya >= np.tile(Qy[i, :], (Ya.shape[0], 1), 2)) == Ya.shape[1]
-            Ya[indices, :] = []
-            Pa[indices] = []
-            Ya = np.append(Ya, Qy[i, :])
-            Pa = [Pa, Q(i)]
-
-    return [Pa, Ya]
-
-
 def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
-           structure_flag, data, Pa, Ya, passive_archive, extreme_switch):
+           structure_flag, data, Pa, Ya, passive_archive, extreme_switch, pop_size):
     # Za Aspiration points
     # Zr reference points
     # P structure of parents
@@ -260,17 +264,20 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
         Qy.append(cost_function(Q[j], data))
     Qy = np.array(Qy)
 
-    if passive_archive:
+    """if passive_archive:  RE-ENABLE PASSIVE ARCHIVE WHEN THE REST OF THE CODE IS DONE
         P_ranks = recursive_pareto_shell_with_duplicates(Qy, 0)
         to_compare = np.argwhere(P_ranks == 0)
-        for i in range(to_compare.shape[0]):
-            [Pa, Ya] = update_passive(Pa, Ya, Qy[to_compare, :], Q[to_compare])
+        to_compare = [i[0] for i in to_compare]
+        for index in to_compare:
+            print(index)
+            Ya[index, :] = Qy[index, :]
+            Pa[index] = Q[index]"""
 
     # MERGE POPULATIONS
-    R = [P, Q]
-    Ry = np.append(Y, Qy)
+    R = np.concatenate((P, Q), axis=0)
+    Ry = np.concatenate((Y, Qy), axis=0)
     # TRUNCATE POPULATION TO GENERATE PARENTS FOR NEXT GENERATION
-    [F, raw] = nondominated_sort(Ry, extreme_switch)
+    [F, raw] = nondominated_sort(Ry, extreme_switch, pop_size)
     # each element of F contains the indices of R of the respective shell
     nd = sum(raw == extreme_switch)
     nd = np.linspace(0, min(nd, Y.shape[0]))

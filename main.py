@@ -2,6 +2,7 @@ import numpy as np
 import NSGA3
 import supportFunctions as sup
 
+
 class Data:
     def __init__(self, n, m, w, h, c, d, p, t, r, pref, term, alpha, pen, mnb, mxb,
                  constraints_on=True, pre_mod_in=None, pre_c=None, pre_x=None, increment_number=0.05):
@@ -57,4 +58,4 @@ if __name__ == '__main__':
     divisions = 8  # p
     NSGA3.NSGA3(50, sup.cost, sup.crossover, sup.swap_mutation, sup.swap_random,
           initial_population=[], boundary_p=(dimensions + divisions - 1), inside_p=divisions, M=dimensions,
-                data=self_gen, passive_archive=1, extreme_switch=1)
+                data=self_gen, passive_archive=1)
