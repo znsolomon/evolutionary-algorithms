@@ -71,6 +71,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
 
     # create structured points if aspiration points not passed in
     Zsa = get_structure_points(M, boundary_p, inside_p)
+    print(Zsa)
     pop_size = Zsa.shape[0]
 
     while pop_size % 4 > 0:
@@ -111,7 +112,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
             # min(Y)  --> What is this line doing?
         [P, Y, Pa, Ya, non_dom, S, Ry] = evolve(Zsa, P, Y, pop_size, cost_function, crossover_function,
                                                 mutation_function, structure_flag, data, Pa, Ya, passive_archive,
-                                                extreme_switch, pop_size)
+                                                extreme_switch)
         if passive_archive:
             stats.prop_non_dom[g] = proportion_nondominated(Y[non_dom, :], Ya)
             stats.mn[g, :] = min(Y)
@@ -176,6 +177,19 @@ def get_structure_points(M, boundary_p, inside_p):
     return Zs
 
 
+def get_simplex_samples(M, p):
+    lb = np.linspace(0, p)
+    lb = lb / p
+    Zs = []
+
+    for i in range(0, p + 1):  # for lambda in turn
+        tmp = np.zeros((M, 1))  # initialise holder for reference point
+        tmp = fill_sample(tmp, lb, i, 0, M)
+        Zs = np.append(Zs, tmp)
+
+    return Zs
+
+
 def fill_sample(tmp, lb, lambda_index, layer_processing, M):
     tmp[layer_processing] = lb[lambda_index]
     if layer_processing < M - 2:
@@ -194,62 +208,24 @@ def fill_sample(tmp, lb, lambda_index, layer_processing, M):
     return tmp_processed
 
 
-def get_simplex_samples(M, p):
-    lb = np.linspace(0, p)
-    lb = lb / p
-    Zs = []
-
-    for i in range(0, p + 1):  # for lambda in turn
-        tmp = np.zeros((M, 1))  # initialise holder for reference point
-        tmp = fill_sample(tmp, lb, i, 0, M)
-        Zs = np.append(Zs, tmp)
-
-    return Zs
-
-
-def nondominated_sort(Ry, extreme_switch, pop_size):  # Sorts Ry by shell order, ignoring duplicates
+def nondominated_sort(Ry, extreme_switch):  # Sorts Ry by shell order, ignoring duplicates
     # extreme_switch =1 unless modified
-    F = np.array([])
     # Eliminate duplicates from Ry
     Ry = np.unique(Ry, axis=0)
-    [N, M] = Ry.shape
     P_ranks = recursive_pareto_shell_with_duplicates(Ry, extreme_switch)
     # Sort P_ranks into shell order
     m_value = int(max(P_ranks))  # Highest shell number
-    P_indexed = np.empty((len(P_ranks), 2))
-    for i in range(len(P_ranks)):
-        P_indexed[i] = [P_ranks[i], i]
-    P_sorted = P_indexed.sort(axis=0)
-    print(P_sorted)
-    P_sorted = np.empty((m_value, 1))
+    shell_values = np.unique(P_ranks)
+    P_indexed = {}
     for shell in range(m_value):
         shell_indexes = np.argwhere(P_ranks == shell)
-        np.concatenate(P_sorted[shell], shell_indexes)
+        P_indexed[shell_values[shell]] = shell_indexes
 
-    print(P_sorted)
-    raw = P_ranks
-    # identify and strip duplicates
-    m_value = max(P_ranks) + 1
-    # strip out individual minimises to protect
-    if extreme_switch:
-        I = np.nonzero(P_ranks == 1)
-        indices = min(Ry[I, :], [], 1)[1:]
-        P_ranks[I[indices]] = 0
-    # now remove duplicates
-    for i in range(N - 1):
-        vec = np.tile(Ry[i, :], (N - i, 1))
-        eq_v = vec == Ry[i + 1:, :]
-        ind = np.nonzero(sum(eq_v, 2) == M)
-        P_ranks[ind + i] = m_value  # move duplicates to worst shell
-
-    for i in range(max(P_ranks)):
-        F[i + 1].I = np.nonzero(P_ranks == i)
-
-    return [F, raw]
+    return P_indexed
 
 
 def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
-           structure_flag, data, Pa, Ya, passive_archive, extreme_switch, pop_size):
+           structure_flag, data, Pa, Ya, passive_archive, extreme_switch):
     # Za Aspiration points
     # Zr reference points
     # P structure of parents
@@ -277,28 +253,28 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
     R = np.concatenate((P, Q), axis=0)
     Ry = np.concatenate((Y, Qy), axis=0)
     # TRUNCATE POPULATION TO GENERATE PARENTS FOR NEXT GENERATION
-    [F, raw] = nondominated_sort(Ry, extreme_switch, pop_size)
+    F = nondominated_sort(Ry, extreme_switch)
     # each element of F contains the indices of R of the respective shell
-    nd = sum(raw == extreme_switch)
-    nd = np.linspace(0, min(nd, Y.shape[0]))
+    nd = F[0]
 
-    i = 1
+    # Fill S up with shells
+    i = 0
     while len(S) < N:
-        S = np.append(S, F[i].I)
-        i = i + 1
+        S = np.append(S, F[i])
+        i += 1
 
     P = []
     Yp = []
-    if len(S) != N:
+    if len(S) != N:  # Concatenate last shell
         indices_used = []
-        for j in range(i - 2):
-            indices_used = np.append(indices_used, F[j].I)
-            P = [P, R[F[j].I]]
-            Yp = np.append(Yp, Ry[F[j].I, :])
+        for j in range(i - 1):
+            indices_used = np.append(indices_used, F[j])
+            P = np.append(P, R[F[j]])
+            Yp = np.append(Yp, Ry[F[j], :])
 
-        Fl = F(i - 1).I  # elements of this last shell now need to be chosen
+        Fl = F[i]  # elements of this last shell now need to be chosen
         K = N - len(P)  # specifically K elements
-        [Yn, Zr] = normalise(S, Ry, Zsa, structure_flag, data)
+        [Yn, Zr] = normalise(S, Ry, Zsa, structure_flag)
 
         [index_of_closest, distance_to_closest] = associate(S, Yn, Zr)
         Zr_niche_count = get_niche_count(Zr, index_of_closest(S[0:len(P)]))
@@ -316,40 +292,42 @@ def normalise(S, Y, Zsa, structure_flag):
     # OUTPUTS
     # Yn = normalised objectives
     # Assumes no preset bounds
-    M = Y.shape[1:]  # get number of objectives
-    ideal = min(Y[S, :])  # initialise ideal point
+    S = S.astype(int)
+    M = Y.shape[1]  # get number of objectives
+    ideal = np.amin(Y, axis=0)  # initialise ideal point by finding smallest value
 
     Yn = Y - np.tile(ideal, (Y.shape[0], 1))
-
     """ FROM PAPER:
     Thereafter, the extreme point(zi, max) in each(ith) objective axis is identified
     by finding the solution(x ? St) that makes the corresponding achievement
     scalarizing function(formed with f_i (x) and a weight vector close to ith objective axis) minimum.
     """
-    nadir = np.zeros(1, M)
-    scalarising_indices = np.zeros(1, M)
-    for j in range(M):
-        scalariser = np.ones(len(S), M)
+    scalarising_indices = []
+    to_remove = []
+    for j in range(M):  # Find the extreme value of each objective
+        scalariser = np.ones((len(S), M))
         scalariser[:, j] = 0
-        scalarised = sum(np.multiply(Yn[S, :], scalariser), 2)
+        scalarised = np.sum(np.multiply(Yn[S, :], scalariser), axis=1)
+        scalarised[to_remove] = np.inf
         # ensure matrix isn't singular by excluding elements already selected
-        for k in range(j - 1):
-            vec = Yn[S(scalarising_indices[k]), :]  # vector of objective values
-            rep_vec = np.tile(vec, (len(S), 1))
-            res = Yn[S, :] == rep_vec
-            scalarised[sum(res, 2) == M] = np.inf
-
-        i = min(scalarised)[1:]
-        # identify solution on the ith axis
+        for k in range(j):
+            ind = scalarising_indices[k]
+            scalarised[ind] = np.inf
+        i = np.argmin(scalarised)
+        # identify solution along the ith axis
         # (i.e. minimising the other objectives as much as possible)
-        nadir[j] = Yn(i, j)
-        scalarising_indices[j] = i
+        scalarising_indices.append(i)
+        # Mark any solutions for removal that perform the same as extreme point
+        for l in range(S.shape[0]):
+            current = Yn[S[l], :]
+            if np.array_equal(current, Yn[S[i], :]):
+                to_remove.append(l)
 
     X = Yn[S[scalarising_indices], :]
 
-    a = np.linalg.solve(X, np.ones(M, 1))  # solve system of linear equations to get weights
+    a = np.linalg.solve(X, np.ones((M, 1)))  # solve system of linear equations to get weights
 
-    Yn = np.multiply(Yn, np.tile(a, (Yn.shape[0], 1)))  # rescale
+    Yn = np.divide(Yn, np.reshape(a, (1, M)))  # rescale
 
     if structure_flag:
         Zr = Zsa
@@ -364,14 +342,19 @@ def associate(S, Yn, Zr):
     # Yn = normalised objectives
     # Zr = reference points
 
-    index_of_closest = np.zeros(max(S), 1)
-    distance_to_closest = np.zeros(max(S), 1)
-    D = np.zeros(Zr.shape[0], 1)
+    index_of_closest = np.zeros((np.argmax(S), 1))
+    distance_to_closest = np.zeros((np.argmax(S), 1))
+    D = np.zeros((Zr.shape[0], 1))
     for i in range(len(S)):
         for j in range(Zr.shape[0]):
-            D[j] = np.linalg.norm(Yn[S[i], :].getH() - (Zr[j, :] * Yn[S[i], :].getH() * Zr[j, :].getH())
-                                  / np.linalg.norm(Zr[j, :].getH(), 2) ^ 2, 2)
-        [distance_to_closest[S[i]], index_of_closest[S[i]]] = min(D)
+            w = Zr[j, :]
+            s = Yn[S[i], :].getH()
+            w_trans = Zr[j, :].getH()
+            w_norm_squared = np.linalg.norm(w, axis=2)**2
+            wt_s_w = np.matmul(np.matmul(w_trans, s), w)
+            D[j] = np.linalg.norm(s - wt_s_w / w_norm_squared)
+
+        [distance_to_closest[S[i]], index_of_closest[S[i]]] = np.argmin(D)
 
     return [index_of_closest, distance_to_closest]
 

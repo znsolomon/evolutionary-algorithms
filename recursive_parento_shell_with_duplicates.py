@@ -28,10 +28,10 @@ def recursive_pareto_shell_with_duplicates(Y, index):
                 break
         if dom:
             S[i] = 0
-            sub_indices.append(i)
+            sub_indices.append(int(i))
         else:
             S[i] = 1
-            dom_indices.append(i)
+            dom_indices.append(int(i))
         # Old code
         # S[i] = sum((sum(Y <= np.tile(Y[i, :], (n, 1)), 2) == m) & (sum(Y < np.tile(Y[i, :], (n, 1)), 2) > 0))
         # S = S+1

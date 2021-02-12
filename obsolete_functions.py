@@ -106,3 +106,115 @@ def update_passive(Pa, Ya, Qy, Q):
             Pa = [Pa, Q(i)]
 
     return [Pa, Ya]
+
+
+def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
+           structure_flag, data, Pa, Ya, passive_archive, extreme_switch):
+    # Za Aspiration points
+    # Zr reference points
+    # P structure of parents
+    # Y objective evaluations of P, matrix | P | by M
+
+    S = []
+    Q = crossover_function(P, data)
+    Q = mutation_function(Q, data)
+    # EVALUATE CHILDREN
+    Qy = []  # could preallocate given number of objectives
+    for j in range(len(Q)):
+        Qy.append(cost_function(Q[j], data))
+    Qy = np.array(Qy)
+
+    """if passive_archive:  RE-ENABLE PASSIVE ARCHIVE WHEN THE REST OF THE CODE IS DONE
+        P_ranks = recursive_pareto_shell_with_duplicates(Qy, 0)
+        to_compare = np.argwhere(P_ranks == 0)
+        to_compare = [i[0] for i in to_compare]
+        for index in to_compare:
+            print(index)
+            Ya[index, :] = Qy[index, :]
+            Pa[index] = Q[index]"""
+
+    # MERGE POPULATIONS
+    R = np.concatenate((P, Q), axis=0)
+    Ry = np.concatenate((Y, Qy), axis=0)
+    # TRUNCATE POPULATION TO GENERATE PARENTS FOR NEXT GENERATION
+    [F, raw] = nondominated_sort(Ry, extreme_switch)
+    # each element of F contains the indices of R of the respective shell
+    nd = sum(raw == extreme_switch)
+    nd = np.linspace(0, min(nd, Y.shape[0]))
+
+    i = 1
+    while len(S) < N:
+        S = np.append(S, F[i].I)
+        i = i + 1
+
+    P = []
+    Yp = []
+    if len(S) != N:
+        indices_used = []
+        for j in range(i - 2):
+            indices_used = np.append(indices_used, F[j].I)
+            P = [P, R[F[j].I]]
+            Yp = np.append(Yp, Ry[F[j].I, :])
+
+        Fl = F(i - 1).I  # elements of this last shell now need to be chosen
+        K = N - len(P)  # specifically K elements
+        [Yn, Zr] = normalise(S, Ry, Zsa, structure_flag, data)
+
+        [index_of_closest, distance_to_closest] = associate(S, Yn, Zr)
+        Zr_niche_count = get_niche_count(Zr, index_of_closest(S[0:len(P)]))
+        [P, Y, indices_used] = niching(K, Zr_niche_count, index_of_closest, distance_to_closest,
+                                       Fl, P, R, Yp, Ry, indices_used)
+
+    else:
+        P = R[S]
+        Y = Ry[S, :]
+
+    return [P, Y, Pa, Ya, nd, S, Ry]
+
+
+def normalise(S, Y, Zsa, structure_flag):
+    # OUTPUTS
+    # Yn = normalised objectives
+    # Assumes no preset bounds
+    S = S.astype(int)
+    M = Y.shape[1]  # get number of objectives
+    ideal = np.amin(Y, axis=0)  # initialise ideal point by finding smallest value
+
+    Yn = Y - np.tile(ideal, (Y.shape[0], 1))
+    """ FROM PAPER:
+    Thereafter, the extreme point(zi, max) in each(ith) objective axis is identified
+    by finding the solution(x ? St) that makes the corresponding achievement
+    scalarizing function(formed with f_i (x) and a weight vector close to ith objective axis) minimum.
+    """
+    #nadir = np.zeros((1, M))
+    scalarising_indices = []
+    for j in range(M):  # Find the extreme value of each objective
+        scalariser = np.ones((len(S), M))
+        scalariser[:, j] = 0
+        scalarised = np.sum(np.multiply(Yn[S, :], scalariser), axis=1)
+        # ensure matrix isn't singular by excluding elements already selected
+        for k in range(j):
+            ind = scalarising_indices[k]
+            scalarised[ind] = np.inf
+            """vec = Yn[S[scalarising_indices[k]], :]  # vector of objective values
+            rep_vec = np.tile(vec, (len(S), 1))
+            res = Yn[S, :] == rep_vec
+            scalarised[np.sum(res, axis=2) == M] = np.inf"""
+        i = np.argmin(scalarised)
+        # identify solution along the ith axis
+        # (i.e. minimising the other objectives as much as possible)
+        #nadir[j, :] = Yn[i, j]
+        scalarising_indices.append(i)
+
+    X = Yn[S[scalarising_indices], :]
+
+    a = np.linalg.solve(X, np.ones((M, 1)))  # solve system of linear equations to get weights
+
+    Yn = np.multiply(Yn, np.tile(a, (Yn.shape[0], 1)))  # rescale
+
+    if structure_flag:
+        Zr = Zsa
+    else:
+        Zr = np.multiply(Zsa, np.tile(a, (Zsa.shape[0], 1)))
+
+    return [Yn, Zr]
