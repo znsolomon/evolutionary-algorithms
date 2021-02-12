@@ -2,6 +2,7 @@ import numpy as np
 
 from recursive_parento_shell_with_duplicates import recursive_pareto_shell_with_duplicates
 
+
 class Statistics:
     def __init__(self):
         self.prop_non_dom = None
@@ -94,8 +95,10 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     if passive_archive == 1:
         P_ranks = recursive_pareto_shell_with_duplicates(Y, 0)
         # P_ranks: pareto-shell rankings of each solution (which shell they are in)
-        Ya = Y[np.where(P_ranks == 0), :]
-        Pa = P[np.where(P_ranks == 0)[0]]
+        nondom = np.argwhere(P_ranks == 0)
+        nondom = [i[0] for i in nondom]
+        Ya = Y[nondom]
+        Pa = P[nondom]
         stats.prop_non_dom = np.zeros((generations, 1))
         stats.mn = np.zeros((generations, M))
         stats.hv = np.zeros((generations, 1))
@@ -233,13 +236,18 @@ def nondominated_sort(Ry, extreme_switch):
 
 
 def update_passive(Pa, Ya, Qy, Q):
-    for i in range(len(Q)):
-        if sum(sum(Ya <= np.tile(Qy[i, :], (Ya.shape[0], 1), 2) == Ya.shape[1])) == 0:  # if not dominated
+    q_shell = recursive_pareto_shell_with_duplicates(Qy, 0)  # gets pareto relationship of Q
+    for i in range(len(Qy)):
+        if q_shell[i] == 0:  # if not dominated
+            Ya[i, :] = Qy[i, :]
+            Pa[i] = Q[i]
+        """ Old code:
+        if sum(sum(Ya <= np.tile(Qy[i, :], (Ya.shape[0], 1)), 2 == Ya.shape[1])) == 0:  # if not dominated
             indices = sum(Ya >= np.tile(Qy[i, :], (Ya.shape[0], 1), 2)) == Ya.shape[1]
             Ya[indices, :] = []
             Pa[indices] = []
             Ya = np.append(Ya, Qy[i, :])
-            Pa = [Pa, Q(i)]
+            Pa = [Pa, Q(i)]"""
 
     return [Pa, Ya]
 
@@ -260,11 +268,14 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
         Qy.append(cost_function(Q[j], data))
     Qy = np.array(Qy)
 
-    if passive_archive:
+    """if passive_archive:  RE-ENABLE PASSIVE ARCHIVE WHEN THE REST OF THE CODE IS DONE
         P_ranks = recursive_pareto_shell_with_duplicates(Qy, 0)
         to_compare = np.argwhere(P_ranks == 0)
-        for i in range(to_compare.shape[0]):
-            [Pa, Ya] = update_passive(Pa, Ya, Qy[to_compare, :], Q[to_compare])
+        to_compare = [i[0] for i in to_compare]
+        for index in to_compare:
+            print(index)
+            Ya[index, :] = Qy[index, :]
+            Pa[index] = Q[index]"""
 
     # MERGE POPULATIONS
     R = [P, Q]

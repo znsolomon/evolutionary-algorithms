@@ -2,6 +2,7 @@ import numpy as np
 import NSGA3
 import supportFunctions as sup
 
+
 class Data:
     def __init__(self, n, m, w, h, c, d, p, t, r, pref, term, alpha, pen, mnb, mxb,
                  constraints_on=True, pre_mod_in=None, pre_c=None, pre_x=None, increment_number=0.05):

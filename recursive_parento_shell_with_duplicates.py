@@ -15,7 +15,7 @@ def recursive_pareto_shell_with_duplicates(Y, index):
     # shell = n by 1 array of corresponding shell membership values
     [n, m] = Y.shape
     S = np.zeros((n, 1))
-    shell = np.zeros((n, 1))
+    shell = np.zeros(n)
     dom_indices = []
     sub_indices = []
 
