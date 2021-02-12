@@ -216,17 +216,12 @@ def nondominated_sort(Ry, extreme_switch, pop_size):  # Sorts Ry by shell order,
     P_ranks = recursive_pareto_shell_with_duplicates(Ry, extreme_switch)
     # Sort P_ranks into shell order
     m_value = int(max(P_ranks))  # Highest shell number
-    P_indexed = np.empty((len(P_ranks), 2))
-    for i in range(len(P_ranks)):
-        P_indexed[i] = [P_ranks[i], i]
-    P_sorted = P_indexed.sort(axis=0)
-    print(P_sorted)
-    P_sorted = np.empty((m_value, 1))
+    shell_values = np.unique(P_ranks)
+    P_indexed = {}
     for shell in range(m_value):
         shell_indexes = np.argwhere(P_ranks == shell)
-        np.concatenate(P_sorted[shell], shell_indexes)
-
-    print(P_sorted)
+        P_indexed[shell_values[shell]] = shell_indexes
+    print(P_indexed)
     raw = P_ranks
     # identify and strip duplicates
     m_value = max(P_ranks) + 1
