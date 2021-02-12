@@ -2,6 +2,13 @@ import numpy as np
 
 from recursive_parento_shell_with_duplicates import recursive_pareto_shell_with_duplicates
 
+class Statistics:
+    def __init__(self):
+        self.prop_non_dom = None
+        self.mn = None
+        self.hv = None
+        self.gen_found = None
+
 
 def NSGA3(generations, cost_function, crossover_function, mutation_function,
           random_solution_function, initial_population, boundary_p, inside_p, M,
@@ -22,7 +29,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
         [], if no initial solutions available
     boundary_p = number of projection points on simplex boundary (scales up with dimension)
     inside_p = number of projection points on inside boundary (scales up with dimension)
-    M = Input dimension of problem
+    M = Input dimension of problem (Number of objectives?)
     data = structure holding bounds to be used if preset bounds argument is
         1(l_bound and u_bound vectors for problem dimension)
         and any additional project specific data(e.g.staff / module data for staff allocation optimisation)
@@ -52,7 +59,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     hv_samp_number = 10000
     structure_flag = 1
     P = []
-    stats = []
+    stats = Statistics()
     start_point = 0
     if initial_population:
         P = initial_population
@@ -71,34 +78,37 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     while pop_size % 4 > 0:
         pop_size = pop_size + 1
 
-    print('Population size is: %d\n', pop_size)
+    print(f"Population size is: {pop_size}\n")
 
     for i in range(start_point, pop_size):
-        P[i].s = random_solution_function(data)
+        P.append(random_solution_function(data))
+    P = np.array(P)
 
     Y = []
     for i in range(len(P)):
-        Y[i, :] = cost_function(P[i].s, data)
+        Y.append(cost_function(P[i], data))
+    Y = np.array(Y)
 
     Pa = []
     Ya = np.array([])
     if passive_archive == 1:
-        [P_ranks] = recursive_pareto_shell_with_duplicates(Y, 0)
-        Ya = Y[P_ranks == 0, :]
-        Pa = P[P_ranks == 0]
-        stats.prop_non_dom = np.zeros(generations, 1)
-        stats.mn = np.zeros(generations, M)
-        stats.hv = np.zeros(generations, 1)
+        P_ranks = recursive_pareto_shell_with_duplicates(Y, 0)
+        # P_ranks: pareto-shell rankings of each solution (which shell they are in)
+        Ya = Y[np.where(P_ranks == 0), :]
+        Pa = P[np.where(P_ranks == 0)[0]]
+        stats.prop_non_dom = np.zeros((generations, 1))
+        stats.mn = np.zeros((generations, M))
+        stats.hv = np.zeros((generations, 1))
         stats.gen_found = np.zeros(Ya.shape[0])  # track which generation a Pareto solution was discovered
         hv_points = np.random.randint(0, 1, size=(hv_samp_number, M))
         hv_points = np.multiply(hv_points, np.tile(data.mxb - data.mnb, (hv_samp_number, 1)))
-        hv_points = hv_points + np.tile((data.mnb, hv_samp_number, 1))
+        hv_points = hv_points + np.tile(data.mnb, (hv_samp_number, 1))
         samps = 0
 
     for g in range(generations):
         if g % 10 == 0:
-            print('generation %d, pop_size %d, passive archive size %d \n', g, pop_size, len(Ya))
-            min(Y)
+            print(f"generation {g}, pop_size {pop_size}, passive archive size {len(Ya)} \n")
+            # min(Y)  --> What is this line doing?
         [P, Y, Pa, Ya, non_dom, S, Ry] = evolve(Zsa, P, Y, pop_size, cost_function, crossover_function,
                                                 mutation_function, structure_flag, data, Pa, Ya, passive_archive,
                                                 extreme_switch)
@@ -167,8 +177,8 @@ def get_structure_points(M, boundary_p, inside_p):
 
 
 def fill_sample(tmp, lb, lambda_index, layer_processing, M):
-    tmp[layer_processing] = lb(lambda_index)
-    if layer_processing < M - 1:
+    tmp[layer_processing] = lb[lambda_index]
+    if layer_processing < M - 2:
         already_used = sum(tmp[0:layer_processing])
         valid_indices = np.nonzero(
             lb <= 1 - already_used + np.finfo(float).eps)  # identify valid fillers that can be used
@@ -177,9 +187,9 @@ def fill_sample(tmp, lb, lambda_index, layer_processing, M):
             tmp_new = tmp
             recursive_matrix = fill_sample(tmp_new, lb, j, layer_processing + 1, M)
             tmp_processed = np.append(tmp_processed, recursive_matrix)
-    else:  # M-1th layer being processed so last element has to complete sum
+    else:  # Second-last (M-1th) layer being processed so last element has to complete sum
         tmp_processed = tmp
-        tmp_processed[M] = 1 - sum(tmp[0:M - 1])
+        tmp_processed[M-1] = 1 - sum(tmp[0:M - 2])
 
     return tmp_processed
 
@@ -190,8 +200,8 @@ def get_simplex_samples(M, p):
     Zs = []
 
     for i in range(0, p + 1):  # for lambda in turn
-        tmp = np.zeros(1, M)  # initialise holder for reference point
-        tmp = fill_sample(tmp, lb, i, 1, M)
+        tmp = np.zeros((M, 1))  # initialise holder for reference point
+        tmp = fill_sample(tmp, lb, i, 0, M)
         Zs = np.append(Zs, tmp)
 
     return Zs
@@ -200,7 +210,7 @@ def get_simplex_samples(M, p):
 def nondominated_sort(Ry, extreme_switch):
     F = np.array([])
     [N, M] = Ry.shape
-    [P_ranks] = recursive_pareto_shell_with_duplicates(Ry, extreme_switch)
+    P_ranks = recursive_pareto_shell_with_duplicates(Ry, extreme_switch)
     raw = P_ranks
     # identify and strip duplicates
     m_value = max(P_ranks) + 1
@@ -247,13 +257,14 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
     # EVALUATE CHILDREN
     Qy = []  # could preallocate given number of objectives
     for j in range(len(Q)):
-        Qy[j, :] = cost_function(Q(j).s, data)
+        Qy.append(cost_function(Q[j], data))
+    Qy = np.array(Qy)
 
     if passive_archive:
-        [P_ranks] = recursive_pareto_shell_with_duplicates(Qy, 0)
+        P_ranks = recursive_pareto_shell_with_duplicates(Qy, 0)
         to_compare = np.argwhere(P_ranks == 0)
         for i in range(to_compare.shape[0]):
-            [Pa, Ya] = update_passive(Pa, Ya, Qy[to_compare, :], Q(to_compare))
+            [Pa, Ya] = update_passive(Pa, Ya, Qy[to_compare, :], Q[to_compare])
 
     # MERGE POPULATIONS
     R = [P, Q]
