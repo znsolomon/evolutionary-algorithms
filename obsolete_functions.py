@@ -63,3 +63,46 @@ def swap_random(P, data):
     x = P[1].s
 
     return x
+
+
+def nondominated_sort(Ry, extreme_switch):  # Sorts Ry by shell order, ignoring duplicates
+    # extreme_switch =1 unless modified
+    F = np.array([])
+    [N, M] = Ry.shape
+    P_ranks = recursive_pareto_shell_with_duplicates(Ry, extreme_switch)
+    raw = P_ranks
+    # identify and strip duplicates
+    m_value = max(P_ranks) + 1
+    # strip out individual minimises to protect
+    if extreme_switch:
+        I = np.nonzero(P_ranks == 1)
+        indices = min(Ry[I, :], [], 1)[1:]
+        P_ranks[I[indices]] = 0
+    # now remove duplicates
+    for i in range(N - 1):
+        vec = np.tile(Ry[i, :], (N - i, 1))
+        eq_v = vec == Ry[i + 1:, :]
+        ind = np.nonzero(sum(eq_v, 2) == M)
+        P_ranks[ind + i] = m_value  # move duplicates to worst shell
+
+    for i in range(max(P_ranks)):
+        F[i + 1].I = np.nonzero(P_ranks == i)
+
+    return [F, raw]
+
+
+def update_passive(Pa, Ya, Qy, Q):
+    q_shell = recursive_pareto_shell_with_duplicates(Qy, 0)  # gets pareto relationship of Q
+    for i in range(len(Qy)):
+        if q_shell[i] == 0:  # if not dominated
+            Ya[i, :] = Qy[i, :]
+            Pa[i] = Q[i]
+        Old code:
+        if sum(sum(Ya <= np.tile(Qy[i, :], (Ya.shape[0], 1)), 2 == Ya.shape[1])) == 0:  # if not dominated
+            indices = sum(Ya >= np.tile(Qy[i, :], (Ya.shape[0], 1), 2)) == Ya.shape[1]
+            Ya[indices, :] = []
+            Pa[indices] = []
+            Ya = np.append(Ya, Qy[i, :])
+            Pa = [Pa, Q(i)]
+
+    return [Pa, Ya]
