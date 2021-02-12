@@ -6,7 +6,8 @@ from main import Solution
 def get_combined_workload(X, C, w_star, c_matrix, d_matrix, p_matrix, alpha, T):
     # Calculates the total workload for each staff member and puts in an array
     # Calculate matrix of teaching loads:
-    temp = np.multiply(c_matrix, C) + np.multiply((d_matrix + np.multiply((1+alpha*T), p_matrix)), X)
+    temp = np.multiply(c_matrix, C)\
+           + np.multiply((d_matrix + np.multiply((1 + alpha * T.reshape(X.shape)), p_matrix)), X)
     w = (w_star+sum(temp))  # add loads to each staff member
     return w
 
@@ -60,13 +61,16 @@ def average_staff_per_module(x):
     # return sum(sum(x != 0))/(x,1).shape
 
 
-def peak_load(X, C,  h, c_matrix, d_matrix, p_matrix, t_matrix, alpha, T):
-    temp = np.multiply(c_matrix, C) + np.multiply(d_matrix + np.multiply((1 + alpha * T), p_matrix), X)
+def peak_load(X, C, h, c_matrix, d_matrix, p_matrix, t_matrix, alpha, T):
+    # Calculate matrix of teaching loads:
+    temp = np.multiply(c_matrix, C) \
+           + np.multiply((d_matrix + np.multiply((1 + alpha * T.reshape(X.shape)), p_matrix)), X)
+    t_matrix = t_matrix[:, np.newaxis]
     return max(abs(sum(np.divide(np.multiply(temp, (t_matrix == 1)) - np.multiply(temp, (t_matrix == 2)), h))))
 
 
 def variation_from_previous_year_teach(X, X_old, increment_number):
-    return sum(sum(abs(X - X_old)))
+    return sum(sum(abs(X - X_old.reshape(X.shape))))
 
 
 def cost(s, data):
@@ -79,6 +83,7 @@ def cost(s, data):
     W - combined matrix of staff workloads
     """
     X = s.X / np.tile(data.increment_number, (1, data.n))
+    data.pref = np.reshape(data.pref, X.shape)  # Fit preferences to shape of X
     y = np.zeros(7)
     w = get_combined_workload(X, s.C, data.workload, data.c_matrix, data.d_matrix, data.p_matrix, data.alpha, data.t)
     y[0] = sum(w) / sum(data.h)
@@ -129,20 +134,22 @@ def crossover(P, data):
     k = len(P)
     R_comb = np.random.permutation(k)
     for i in range(0, k-1, 2):
-        parent1 = P[R_comb[i]].s
-        parent2 = P[R_comb[i+1]].s
-        crossover_mask = np.random.rand(data.m, 1) < 0.5
+        parent1 = P[R_comb[i]]
+        parent2 = P[R_comb[i+1]]
+        mask_x = np.random.randint(data.m)
+        mask_y = np.random.randint(data.n)
         child1 = parent1
         child2 = parent2
         if np.random.rand() < 0.8 % 80:  # chance of crossover
-            child1.X[crossover_mask, :] = parent2.X[crossover_mask, :]
-            child1.C[crossover_mask, :] = parent2.C[crossover_mask, :]
+            # Swap single array value
+            child1.X[mask_x, mask_y] = parent2.X[mask_x, mask_y]
+            child1.C[mask_x, mask_y] = parent2.C[mask_x, mask_y]
 
-            child2.X[crossover_mask, :] = parent1.X[crossover_mask, :]
-            child2.C[crossover_mask, :] = parent1.C[crossover_mask, :]
+            child2.X[mask_x, mask_y] = parent1.X[mask_x, mask_y]
+            child2.C[mask_x, mask_y] = parent1.C[mask_x, mask_y]
 
-            P[R_comb[i]].s = child1
-            P[R_comb[i]].s = child2
+            P[R_comb[i]] = child1
+            P[R_comb[i]] = child2
     return P
 
 
@@ -151,48 +158,45 @@ def swap_mutation(P, data):
     max_to_vary = 1  # NO. elements to switch on
     for i in range(len(P)):
         for k in range(max_to_vary):
-            child = P[i].s
-            rm = np.random.permutation(data.m)  # get a module at random
-            rm = rm[1]
+            child = P[i]
+            rm = np.random.randint(data.m)  # get a module at random
             I = np.argwhere(child.X[rm, :] > 0)  # Get indices where teaching is happening
-            r = np.random.permutation(len(I))
-            I = I[r]  # Randomly permute
-            if I:  # some delivery internally
+            if len(I) != 0:  # some delivery internally
+                r = np.random.permutation(len(I))
+                I = I[r]  # Randomly permute
                 if np.random.rand() < 0.5:
-                    child.X[rm[1], I[1]] = child.X[rm[1], I[1]] - 1
+                    child.X[rm, I[0]] = child.X[rm, I[0]] - 1
                     rn = np.random.permutation(data.n)  # Allocate to a random other
-                    child.X[rm[1], rn[1]] = child.X[rm[1], rn[1]] + 1
-                    # Always assign coordination to staff teaching most of module
-                    child.C[rm[1], :] = 0
-                    index = max(child.X[rm[1], :])[1:]
-                    child.C[rm[1], index] = 1
+                    child.X[rm, rn[0]] = child.X[rm, rn[0]] + 1
                 else:  # randomly remove teaching of module from one member of staff and give to another
                     rn = np.random.permutation(data.n)  # allocate to a random other
-                    if rn[1] == I[1]:
-                        rn = rn[2]
-                    else:
+                    if rn[0] == I[0]:
                         rn = rn[1]
-                    child.X[rm[1], rn] = child.X[rm[1], rn] + child.X[rm[1], I[1]]
-                    child.X[rm[1], I[1]] = 0
-                    child.C[rm[1], rn] = max(child.C[rm[1], I[1]], child.C[rm[1], rn])
-                    child.C[rm[1], I[1]] = 0
+                    else:
+                        rn = rn[0]
+                    child.X[rm, rn] = child.X[rm, rn] + child.X[rm, I[0]]
+                    child.X[rm, I] = 0
+                # Always assign coordination to staff teaching most of module
+                child.C[rm, :] = 0
+                index = np.argmax(child.X[rm, :])
+                child.C[rm, index] = 1
             else:  # where no teaching due to external delivery swap coordinator
-                child.C[rm[1], :] = 0
+                child.C[rm, :] = 0
                 index = np.random.permutation(data.n)
-                child.C[rm[1], index[1]] = 1
-            P[i].s = child
+                child.C[rm, index[0]] = 1
+            P[i] = child
     P = teaching_constraints(P, data)
     return P
 
 
 def swap_random(data):
-    X = np.zeros(data.m, data.n)
-    C = np.zeros(data.m, data.n)
+    X = np.zeros((data.m, data.n))
+    C = np.zeros((data.m, data.n))
     # Assign coordinations randomly
-    for x, y in np.ndindex(C.shape()):
+    for x, y in np.ndindex(C.shape):
         C[x, y] = np.random.randint(0, 1)
     # Assign teaching proportions randomly
-    for x, y in np.ndindex(X.shape()):
+    for x, y in np.ndindex(X.shape):
         X[x, y] = np.random.randint(0, 100)
 
     x = Solution(X, C)
@@ -201,7 +205,7 @@ def swap_random(data):
 
 def teaching_constraints(P, data):
     for i in range(len(P)):
-        s = P[i].s
+        s = P[i]
         # ensure preallocations
         for j in data.preallocated_module_indices:
             if sum(data.preallocated_C[j, :]) > 0:
@@ -218,5 +222,5 @@ def teaching_constraints(P, data):
                     if s.X[j, live[k[1]]] > data.preallocated_X[j, live[k[1]]]:
                         s.X[j, live[k[1]]] = s.X[j, live[k[1]]] - 1
                     total_load = sum(s.X[j, :]) + data.external_allocation[j]
-        P[i].s = s
+        P[i] = s
     return P
