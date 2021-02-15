@@ -106,3 +106,67 @@ def update_passive(Pa, Ya, Qy, Q):
             Pa = [Pa, Q(i)]
 
     return [Pa, Ya]
+
+
+def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
+           structure_flag, data, Pa, Ya, passive_archive, extreme_switch):
+    # Za Aspiration points
+    # Zr reference points
+    # P structure of parents
+    # Y objective evaluations of P, matrix | P | by M
+
+    S = []
+    Q = crossover_function(P, data)
+    Q = mutation_function(Q, data)
+    # EVALUATE CHILDREN
+    Qy = []  # could preallocate given number of objectives
+    for j in range(len(Q)):
+        Qy.append(cost_function(Q[j], data))
+    Qy = np.array(Qy)
+
+    """if passive_archive:  RE-ENABLE PASSIVE ARCHIVE WHEN THE REST OF THE CODE IS DONE
+        P_ranks = recursive_pareto_shell_with_duplicates(Qy, 0)
+        to_compare = np.argwhere(P_ranks == 0)
+        to_compare = [i[0] for i in to_compare]
+        for index in to_compare:
+            print(index)
+            Ya[index, :] = Qy[index, :]
+            Pa[index] = Q[index]"""
+
+    # MERGE POPULATIONS
+    R = np.concatenate((P, Q), axis=0)
+    Ry = np.concatenate((Y, Qy), axis=0)
+    # TRUNCATE POPULATION TO GENERATE PARENTS FOR NEXT GENERATION
+    [F, raw] = nondominated_sort(Ry, extreme_switch)
+    # each element of F contains the indices of R of the respective shell
+    nd = sum(raw == extreme_switch)
+    nd = np.linspace(0, min(nd, Y.shape[0]))
+
+    i = 1
+    while len(S) < N:
+        S = np.append(S, F[i].I)
+        i = i + 1
+
+    P = []
+    Yp = []
+    if len(S) != N:
+        indices_used = []
+        for j in range(i - 2):
+            indices_used = np.append(indices_used, F[j].I)
+            P = [P, R[F[j].I]]
+            Yp = np.append(Yp, Ry[F[j].I, :])
+
+        Fl = F(i - 1).I  # elements of this last shell now need to be chosen
+        K = N - len(P)  # specifically K elements
+        [Yn, Zr] = normalise(S, Ry, Zsa, structure_flag, data)
+
+        [index_of_closest, distance_to_closest] = associate(S, Yn, Zr)
+        Zr_niche_count = get_niche_count(Zr, index_of_closest(S[0:len(P)]))
+        [P, Y, indices_used] = niching(K, Zr_niche_count, index_of_closest, distance_to_closest,
+                                       Fl, P, R, Yp, Ry, indices_used)
+
+    else:
+        P = R[S]
+        Y = Ry[S, :]
+
+    return [P, Y, Pa, Ya, nd, S, Ry]
