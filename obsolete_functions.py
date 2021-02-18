@@ -170,3 +170,51 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
         Y = Ry[S, :]
 
     return [P, Y, Pa, Ya, nd, S, Ry]
+
+
+def normalise(S, Y, Zsa, structure_flag):
+    # OUTPUTS
+    # Yn = normalised objectives
+    # Assumes no preset bounds
+    S = S.astype(int)
+    M = Y.shape[1]  # get number of objectives
+    ideal = np.amin(Y, axis=0)  # initialise ideal point by finding smallest value
+
+    Yn = Y - np.tile(ideal, (Y.shape[0], 1))
+    """ FROM PAPER:
+    Thereafter, the extreme point(zi, max) in each(ith) objective axis is identified
+    by finding the solution(x ? St) that makes the corresponding achievement
+    scalarizing function(formed with f_i (x) and a weight vector close to ith objective axis) minimum.
+    """
+    #nadir = np.zeros((1, M))
+    scalarising_indices = []
+    for j in range(M):  # Find the extreme value of each objective
+        scalariser = np.ones((len(S), M))
+        scalariser[:, j] = 0
+        scalarised = np.sum(np.multiply(Yn[S, :], scalariser), axis=1)
+        # ensure matrix isn't singular by excluding elements already selected
+        for k in range(j):
+            ind = scalarising_indices[k]
+            scalarised[ind] = np.inf
+            """vec = Yn[S[scalarising_indices[k]], :]  # vector of objective values
+            rep_vec = np.tile(vec, (len(S), 1))
+            res = Yn[S, :] == rep_vec
+            scalarised[np.sum(res, axis=2) == M] = np.inf"""
+        i = np.argmin(scalarised)
+        # identify solution along the ith axis
+        # (i.e. minimising the other objectives as much as possible)
+        #nadir[j, :] = Yn[i, j]
+        scalarising_indices.append(i)
+
+    X = Yn[S[scalarising_indices], :]
+
+    a = np.linalg.solve(X, np.ones((M, 1)))  # solve system of linear equations to get weights
+
+    Yn = np.multiply(Yn, np.tile(a, (Yn.shape[0], 1)))  # rescale
+
+    if structure_flag:
+        Zr = Zsa
+    else:
+        Zr = np.multiply(Zsa, np.tile(a, (Zsa.shape[0], 1)))
+
+    return [Yn, Zr]
