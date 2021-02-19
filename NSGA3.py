@@ -71,7 +71,6 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
 
     # create structured points if aspiration points not passed in
     Zsa = get_structure_points(M, boundary_p, inside_p)
-    print(Zsa)
     pop_size = Zsa.shape[0]
 
     while pop_size % 4 > 0:
@@ -168,10 +167,11 @@ def proportion_nondominated(Y, Ya):
 
 def get_structure_points(M, boundary_p, inside_p):
     Zs = get_simplex_samples(M, boundary_p)
+    print(Zs.shape)
     Zs_inside = get_simplex_samples(M, inside_p)
     Zs_inside = Zs_inside / 2  # retract
     Zs_inside = Zs_inside + 0.5 / M  # project inside
-
+    print(Zs_inside.shape)
     Zs = np.append(Zs, Zs_inside)
 
     return Zs
