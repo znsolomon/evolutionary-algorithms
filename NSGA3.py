@@ -71,6 +71,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
 
     # create structured points if aspiration points not passed in
     Zsa = get_structure_points(M, boundary_p, inside_p)
+    print(Zsa)
     pop_size = Zsa.shape[0]
 
     while pop_size % 4 > 0:
@@ -176,6 +177,19 @@ def get_structure_points(M, boundary_p, inside_p):
     return Zs
 
 
+def get_simplex_samples(M, p):
+    lb = np.linspace(0, p)
+    lb = lb / p
+    Zs = []
+
+    for i in range(0, p + 1):  # for lambda in turn
+        tmp = np.zeros((M, 1))  # initialise holder for reference point
+        tmp = fill_sample(tmp, lb, i, 0, M)
+        Zs = np.append(Zs, tmp)
+
+    return Zs
+
+
 def fill_sample(tmp, lb, lambda_index, layer_processing, M):
     tmp[layer_processing] = lb[lambda_index]
     if layer_processing < M - 2:
@@ -192,19 +206,6 @@ def fill_sample(tmp, lb, lambda_index, layer_processing, M):
         tmp_processed[M-1] = 1 - sum(tmp[0:M - 2])
 
     return tmp_processed
-
-
-def get_simplex_samples(M, p):
-    lb = np.linspace(0, p)
-    lb = lb / p
-    Zs = []
-
-    for i in range(0, p + 1):  # for lambda in turn
-        tmp = np.zeros((M, 1))  # initialise holder for reference point
-        tmp = fill_sample(tmp, lb, i, 0, M)
-        Zs = np.append(Zs, tmp)
-
-    return Zs
 
 
 def nondominated_sort(Ry, extreme_switch):  # Sorts Ry by shell order, ignoring duplicates
@@ -302,10 +303,12 @@ def normalise(S, Y, Zsa, structure_flag):
     scalarizing function(formed with f_i (x) and a weight vector close to ith objective axis) minimum.
     """
     scalarising_indices = []
+    to_remove = []
     for j in range(M):  # Find the extreme value of each objective
         scalariser = np.ones((len(S), M))
         scalariser[:, j] = 0
         scalarised = np.sum(np.multiply(Yn[S, :], scalariser), axis=1)
+        scalarised[to_remove] = np.inf
         # ensure matrix isn't singular by excluding elements already selected
         for k in range(j):
             ind = scalarising_indices[k]
@@ -314,13 +317,17 @@ def normalise(S, Y, Zsa, structure_flag):
         # identify solution along the ith axis
         # (i.e. minimising the other objectives as much as possible)
         scalarising_indices.append(i)
+        # Mark any solutions for removal that perform the same as extreme point
+        for l in range(S.shape[0]):
+            current = Yn[S[l], :]
+            if np.array_equal(current, Yn[S[i], :]):
+                to_remove.append(l)
 
     X = Yn[S[scalarising_indices], :]
 
     a = np.linalg.solve(X, np.ones((M, 1)))  # solve system of linear equations to get weights
-    print(a)
 
-    Yn = np.multiply(Yn, np.tile(a, (Yn.shape[0], 1)))  # rescale
+    Yn = np.divide(Yn, np.reshape(a, (1, M)))  # rescale
 
     if structure_flag:
         Zr = Zsa
@@ -335,14 +342,19 @@ def associate(S, Yn, Zr):
     # Yn = normalised objectives
     # Zr = reference points
 
-    index_of_closest = np.zeros(max(S), 1)
-    distance_to_closest = np.zeros(max(S), 1)
-    D = np.zeros(Zr.shape[0], 1)
+    index_of_closest = np.zeros((np.argmax(S), 1))
+    distance_to_closest = np.zeros((np.argmax(S), 1))
+    D = np.zeros((Zr.shape[0], 1))
     for i in range(len(S)):
         for j in range(Zr.shape[0]):
-            D[j] = np.linalg.norm(Yn[S[i], :].getH() - (Zr[j, :] * Yn[S[i], :].getH() * Zr[j, :].getH())
-                                  / np.linalg.norm(Zr[j, :].getH(), 2) ^ 2, 2)
-        [distance_to_closest[S[i]], index_of_closest[S[i]]] = min(D)
+            w = Zr[j, :]
+            s = Yn[S[i], :].getH()
+            w_trans = Zr[j, :].getH()
+            w_norm_squared = np.linalg.norm(w, axis=2)**2
+            wt_s_w = np.matmul(np.matmul(w_trans, s), w)
+            D[j] = np.linalg.norm(s - wt_s_w / w_norm_squared)
+
+        [distance_to_closest[S[i]], index_of_closest[S[i]]] = np.argmin(D)
 
     return [index_of_closest, distance_to_closest]
 
