@@ -218,3 +218,35 @@ def normalise(S, Y, Zsa, structure_flag):
         Zr = np.multiply(Zsa, np.tile(a, (Zsa.shape[0], 1)))
 
     return [Yn, Zr]
+
+
+def associate(S, Yn, Zr):
+    """
+    1. Compute reference lines of Zr by joining each reference point with the origin
+    2. Get distance from each population member to each reference line
+    3. Associate each pop member with the closest reference line
+    :param S: indices of members
+    :param Yn: normalised objective vectors
+    :param Zr: reference points
+    :return: indexes and distances of population members associated with reference points
+    """
+    print(Zr.shape)
+    print(Yn.shape)
+    index_of_closest = np.zeros((np.argmax(S), 1))
+    distance_to_closest = np.zeros((np.argmax(S), 1))
+    D = np.zeros((Zr.shape[0], 1))
+    for i in range(len(S)):
+        for j in range(Zr.shape[0]):
+            w = Zr[j, :]
+            index = int(S[i])
+            print(perpendicular_distance(Yn[index], Zr[j]))
+            s = np.transpose(Yn[index, :])
+            w_trans = np.transpose(Zr[j, :])
+            w_norm_squared = np.linalg.norm(w)**2
+            print(np.matmul(w_trans, s))
+            wt_s_w = np.matmul(np.matmul(w_trans, s), w)
+            D[j] = np.linalg.norm(s - wt_s_w / w_norm_squared)
+
+        [distance_to_closest[S[i]], index_of_closest[S[i]]] = np.argmin(D)
+
+    return [index_of_closest, distance_to_closest]

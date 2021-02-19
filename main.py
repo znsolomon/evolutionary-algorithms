@@ -55,7 +55,7 @@ if __name__ == '__main__':
                     r=prop_taught, pref=pref, term=term, alpha=0, mnb=5, mxb=3, pen=penalties, pre_mod_in=[])
 
     dimensions = 7  # M
-    divisions = 8  # p
+    divisions = 4  # p
     NSGA3.NSGA3(50, sup.cost, sup.crossover, sup.swap_mutation, sup.swap_random,
           initial_population=[], boundary_p=(dimensions + divisions - 1), inside_p=divisions, M=dimensions,
-                data=self_gen, passive_archive=1)
+                data=self_gen, pop_size=200, passive_archive=1)
