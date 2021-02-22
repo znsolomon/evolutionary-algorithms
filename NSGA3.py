@@ -13,12 +13,8 @@ class Statistics:
 
 def NSGA3(generations, cost_function, crossover_function, mutation_function,
           random_solution_function, initial_population, boundary_p, inside_p, M,
-          data, passive_archive, extreme_switch=0):
-    """ [P, Y, Zsa, Pa, Ya, stats] = NSGA3(...
-                                     % generations, cost_function, crossover_function, mutation_function, ...
-                                     % random_solution_function, initial_population, boundary_p, inside_p, M, ...
-                                     % data, passive_archive, extreme_switch, preset_bounds)
-
+          data, passive_archive, pop_size, extreme_switch=0):
+    """
     INPUTS
 
     generations = number of generations to run optimiser for
@@ -37,6 +33,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     passive_archive = OPTIONAL ARGUMENT(set at 1 if not % provided).
         If equal to 1 a passive archive tracking best solutions evaluated during run is maintained and returned
         in stats structure
+    no_obj: number of objectives
     extreme_switch = OPTIONAL ARGUMENT If set at 1 the solutions at the extremes
         (minimising each criterion) are always preserved in the selection from one generation to the next
         Default 1
@@ -58,7 +55,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     """
 
     hv_samp_number = 10000
-    structure_flag = 1
+    structure_flag = 0
     P = []
     stats = Statistics()
     start_point = 0
@@ -71,7 +68,6 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
 
     # create structured points if aspiration points not passed in
     Zsa = get_structure_points(M, boundary_p, inside_p)
-    pop_size = Zsa.shape[0]
 
     while pop_size % 4 > 0:
         pop_size = pop_size + 1
@@ -167,18 +163,16 @@ def proportion_nondominated(Y, Ya):
 
 def get_structure_points(M, boundary_p, inside_p):
     Zs = get_simplex_samples(M, boundary_p)
-    print(Zs.shape)
     Zs_inside = get_simplex_samples(M, inside_p)
     Zs_inside = Zs_inside / 2  # retract
     Zs_inside = Zs_inside + 0.5 / M  # project inside
-    print(Zs_inside.shape)
     Zs = np.append(Zs, Zs_inside)
 
     return Zs
 
 
 def get_simplex_samples(M, p):
-    lb = np.linspace(0, p)
+    lb = np.linspace(0, p)  # Evenly spaced numbers from o to p
     lb = lb / p
     Zs = []
 
@@ -191,11 +185,11 @@ def get_simplex_samples(M, p):
 
 
 def fill_sample(tmp, lb, lambda_index, layer_processing, M):
-    tmp[layer_processing] = lb[lambda_index]
-    if layer_processing < M - 2:
-        already_used = sum(tmp[0:layer_processing])
-        valid_indices = np.nonzero(
-            lb <= 1 - already_used + np.finfo(float).eps)  # identify valid fillers that can be used
+    tmp[layer_processing] = lb[lambda_index]  # Sets current layer of tmp to current lambda
+    if layer_processing < M - 2:  # For each layer but the second-last and last
+        already_used = sum(tmp[0:layer_processing])  # Values of tmp already filled
+        # identify valid fillers that can be used:
+        valid_indices = np.where(lb <= 1 - already_used + np.finfo(float).eps)
         tmp_processed = np.array([])
         for j in range(len(valid_indices)):
             tmp_new = tmp
@@ -332,29 +326,39 @@ def normalise(S, Y, Zsa, structure_flag):
     if structure_flag:
         Zr = Zsa
     else:
-        Zr = np.multiply(Zsa, np.tile(a, (Zsa.shape[0], 1)))
+        # Zr = np.multiply(Zsa, np.tile(a, (Zsa.shape[0], 1)))
+        Zr = np.transpose(np.divide(Zsa, a),)
 
     return [Yn, Zr]
 
 
+def perpendicular_distance(direction, point):
+    k = np.dot(direction, point) / np.sum(np.power(direction, 2))
+    d = np.sum(np.power(np.subtract(np.multiply(direction, [k] * len(direction)), point), 2))
+    return np.sqrt(d)
+
+
 def associate(S, Yn, Zr):
-    # S = indices of members
-    # Yn = normalised objectives
-    # Zr = reference points
-
-    index_of_closest = np.zeros((np.argmax(S), 1))
-    distance_to_closest = np.zeros((np.argmax(S), 1))
-    D = np.zeros((Zr.shape[0], 1))
+    """
+    1. Compute reference lines of Zr by joining each reference point with the origin
+    2. Get distance from each population member to each reference line
+    3. Associate each pop member with the closest reference line
+    :param S: indices of members
+    :param Yn: normalised objective vectors
+    :param Zr: reference points
+    :return: indexes and distances of population members associated with reference points
+    """
+    max_s = int(np.amax((S)))
+    index_of_closest = np.zeros((max_s+1, 1))
+    distance_to_closest = np.zeros((max_s+1, 1))
     for i in range(len(S)):
+        D = np.zeros(Zr.shape[0])
+        s_index = int(S[i])
         for j in range(Zr.shape[0]):
-            w = Zr[j, :]
-            s = Yn[S[i], :].getH()
-            w_trans = Zr[j, :].getH()
-            w_norm_squared = np.linalg.norm(w, axis=2)**2
-            wt_s_w = np.matmul(np.matmul(w_trans, s), w)
-            D[j] = np.linalg.norm(s - wt_s_w / w_norm_squared)
-
-        [distance_to_closest[S[i]], index_of_closest[S[i]]] = np.argmin(D)
+            D[j] = perpendicular_distance(Yn[s_index], Zr[j])
+        closest = np.argmin(D)
+        distance_to_closest[s_index] = D[closest]
+        index_of_closest[s_index] = closest
 
     return [index_of_closest, distance_to_closest]
 
