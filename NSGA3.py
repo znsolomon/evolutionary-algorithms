@@ -102,13 +102,14 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
         samps = 0
 
     for g in range(generations):
+        print(g)
         if g % 10 == 0:
             print(f"generation {g}, pop_size {pop_size}, passive archive size {len(Ya)} \n")
             # min(Y)  --> What is this line doing?
         [P, Y, Pa, Ya, non_dom, S, Ry] = evolve(Zsa, P, Y, pop_size, cost_function, crossover_function,
                                                 mutation_function, structure_flag, data, Pa, Ya, passive_archive,
                                                 extreme_switch)
-        if passive_archive:
+        """if passive_archive:
             stats.prop_non_dom[g] = proportion_nondominated(Y[non_dom, :], Ya)
             stats.mn[g, :] = min(Y)
             [stats.hv[g], hv_points, samps] = est_hv(data.mnb, data.mxb, Ya, hv_points, samps)
@@ -117,7 +118,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
 
             if g % 10 == 0:
                 print('Prop dominated %f, MC samples %d, hypervolume %f\n',
-                      stats.prop_non_dom[g], samps + hv_samp_number, stats.hv[g])
+                      stats.prop_non_dom[g], samps + hv_samp_number, stats.hv[g])"""
 
     return [P, Y, Zsa, Pa, Ya, stats]
 
@@ -373,31 +374,59 @@ def associate(S, Yn, Zr):
 
 
 def niching(K, Zr_niche_count, index_of_closest, distance_to_closest, Fl, P, R, Yp, Y, iu):
+    """
+    1. Identify the set of reference points with minimum niche count (choose one at random if multiples)
+    2. If the front has no members associated with reference point, exclude it from further calculation
+    3. If niche count = 0, get the closest pop members to the reference point
+    4. If niche count >= 1, get one of the associated pop members at random
+    5. Add this acquired pop members to the pop for next gen, then repeat until P is full
+    :param K: The number of points needed to add to P
+    :param Zr_niche_count: Count of how many individuals are associated with each reference point [no. ref points]
+    :param index_of_closest: Indices of pop members associated with reference points
+    :param distance_to_closest: Distances of pop members associated with reference points
+    :param Fl: Shell of pop members needed to look through (index values)
+    :param P: Population for next generation
+    :param R: Merged full population in current generation
+    :param Yp:
+    :param Y:
+    :param iu:
+    :return: Modified, P, Yp and iu
+    """
     # returns indices of final selected population
 
     k = 1
-
     while k <= K:
-        [j_min] = min(Zr_niche_count)
-        I = np.nonzero(Zr_niche_count == j_min)  # get indices of Zr elements which have smallest niche count
-        j_bar = np.random.permutation(len(I))
-        j_bar = I[j_bar[1]]  # get random index of element of Zr which has lowest niche count
-        # get members of Fl which have the j_bar element of Zr as their guide
-        Ij_bar = np.nonzero(index_of_closest(Fl) == j_bar)
-        if Ij_bar:  # is j_bar index in Fl?
-            if Zr_niche_count(j_bar) == 0:  # no associated P member with ref point
-                chosen_index = min(distance_to_closest(Fl(Ij_bar)))[1:]  # get index of closest matching member of Fl
+        # get indices of Zr elements which have smallest niche count
+        I = np.where(Zr_niche_count == Zr_niche_count.min())
+        I = np.array(I)
+        if I.shape[1] > 1:  # If there's more than one Zr element with smallest niche count
+            smallest_niche_ref = np.random.permutation(I.shape[1])
+            # get random index of element of Zr which has lowest niche count
+            smallest_niche_ref = I[0, smallest_niche_ref[0]]
+        else:
+            smallest_niche_ref = I
+        # get members of Fl which have the smallest_niche_ref element of Zr as their guide
+        Ij_bar = []
+        for i in range(len(Fl)):
+            ind = Fl[i]
+            if index_of_closest[ind] == smallest_niche_ref:
+                Ij_bar.append(i)
+        if Ij_bar:  # is smallest_niche_ref index in Fl?
+            if Zr_niche_count[smallest_niche_ref] == 0:  # no associated P member with ref point
+                # get index of closest matching member of Fl
+                chosen_index = np.argmin(distance_to_closest[Fl[Fl[0] == Ij_bar]])
             else:
                 indices = np.random.permutation(len(Ij_bar))
-                chosen_index = indices[1]
-            P = [P, R(Fl(Ij_bar[chosen_index]))]  # add to P
+                chosen_index = indices[0]
+            # Problem: Ij_bar contains values that are bigger than Fl
+            P = np.append(P, R[Fl[Ij_bar[chosen_index]]])  # add to P
             Yp = np.append(Yp, Y[Fl[Ij_bar[chosen_index]], :])
-            Zr_niche_count[j_bar] = Zr_niche_count(j_bar) + 1
+            Zr_niche_count[smallest_niche_ref] += 1
             iu = np.append(iu, Fl[Ij_bar[chosen_index]])
-            Fl[Ij_bar[chosen_index]] = []  # remove from consideration next time
+            Fl[Ij_bar[chosen_index]] = np.empty((1, 1))  # remove from consideration next time
             k = k + 1
         else:
-            Zr_niche_count[j_bar] = np.inf
+            Zr_niche_count[smallest_niche_ref] = np.inf
             # put niche count to infinity so it will not be considered in the next loop, same as removing from Zr
 
     return [P, Yp, iu]
