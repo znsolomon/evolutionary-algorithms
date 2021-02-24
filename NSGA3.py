@@ -271,7 +271,16 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
         [Yn, Zr] = normalise(S, Ry, Zsa, structure_flag)
 
         [index_of_closest, distance_to_closest] = associate(S, Yn, Zr)
-        Zr_niche_count = get_niche_count(Zr, index_of_closest(S[0:len(P)]))
+        # Get 'niche count': count of how many individuals are associated with each reference point
+        s_targets = S[0:len(P)]
+        ioc_targets = []
+        for t in s_targets:
+            t = int(t)
+            ioc_targets.append(index_of_closest[t])
+        Zr_niche_count = np.zeros(len(Zr))
+        for i in range(len(Zr_niche_count)):
+            Zr_niche_count[i] = np.count_nonzero(ioc_targets == i)
+
         [P, Y, indices_used] = niching(K, Zr_niche_count, index_of_closest, distance_to_closest,
                                        Fl, P, R, Yp, Ry, indices_used)
 
@@ -392,12 +401,3 @@ def niching(K, Zr_niche_count, index_of_closest, distance_to_closest, Fl, P, R, 
             # put niche count to infinity so it will not be considered in the next loop, same as removing from Zr
 
     return [P, Yp, iu]
-
-
-def get_niche_count(Zr, indices):
-    # indices =
-    niche_count = np.zeros(len(Zr), 1)
-    for i in range(len(niche_count)):
-        niche_count[i] = sum(indices == i)
-
-    return [niche_count]
