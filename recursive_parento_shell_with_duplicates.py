@@ -48,7 +48,7 @@ def domination(a, b):  # Check if solution a dominates solution b
     if np.array_equal(a, b):
         return False  # If a and b are equal, they do not dominate
     for i in range(len(a)):
-        if a[i] < b[i]:
+        if a[i] > b[i]:
             return False  # At least one element in b is greater than a
     # a and b cannot be equal here, and no element in b can be greater than a,
     # therefore at least one element in a must be bigger than b

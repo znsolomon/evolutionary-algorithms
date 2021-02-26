@@ -260,14 +260,20 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
 
     P = []
     Yp = []
+    first = True
     if len(S) != N:  # Concatenate last shell
         indices_used = []
         for j in range(i - 1):
             indices_used = np.append(indices_used, F[j])
             P = np.append(P, R[F[j]])
-            Yp = np.append(Yp, Ry[F[j], :])
+            for item in F[j]:
+                if first:
+                    first = False
+                    Yp = Ry[item, :]
+                else:
+                    Yp = np.append(Yp, Ry[item, :], axis=0)
 
-        Fl = F[i]  # elements of this last shell now need to be chosen
+        Fl = F[i-1]  # elements of this last shell now need to be chosen
         K = N - len(P)  # specifically K elements
         [Yn, Zr] = normalise(S, Ry, Zsa, structure_flag)
 
@@ -309,6 +315,7 @@ def normalise(S, Y, Zsa, structure_flag):
     scalarising_indices = []
     to_remove = []
     for j in range(M):  # Find the extreme value of each objective
+        # Finds the solutions that minimise the other objectives
         scalariser = np.ones((len(S), M))
         scalariser[:, j] = 0
         scalarised = np.sum(np.multiply(Yn[S, :], scalariser), axis=1)
@@ -317,7 +324,13 @@ def normalise(S, Y, Zsa, structure_flag):
         for k in range(j):
             ind = scalarising_indices[k]
             scalarised[ind] = np.inf
-        i = np.argmin(scalarised)
+        not_found = True
+        while not_found:
+            i = np.argmin(scalarised)
+            if Yn[S[i], j] == 0.0:  # Having extreme values of 0 mean the hyperplane cannot be formed
+                scalarised[i] = np.inf  # Therefore they must be discounted
+            else:
+                not_found = False
         # identify solution along the ith axis
         # (i.e. minimising the other objectives as much as possible)
         scalarising_indices.append(i)
@@ -414,13 +427,13 @@ def niching(K, Zr_niche_count, index_of_closest, distance_to_closest, Fl, P, R, 
         if Ij_bar:  # is smallest_niche_ref index in Fl?
             if Zr_niche_count[smallest_niche_ref] == 0:  # no associated P member with ref point
                 # get index of closest matching member of Fl
-                chosen_index = np.argmin(distance_to_closest[Fl[Fl[0] == Ij_bar]])
+                chosen_index = np.argmin(distance_to_closest[Fl[Ij_bar]])
             else:
                 indices = np.random.permutation(len(Ij_bar))
                 chosen_index = indices[0]
             # Problem: Ij_bar contains values that are bigger than Fl
             P = np.append(P, R[Fl[Ij_bar[chosen_index]]])  # add to P
-            Yp = np.append(Yp, Y[Fl[Ij_bar[chosen_index]], :])
+            Yp = np.append(Yp, Y[Fl[Ij_bar[chosen_index]], :], axis=0)
             Zr_niche_count[smallest_niche_ref] += 1
             iu = np.append(iu, Fl[Ij_bar[chosen_index]])
             Fl[Ij_bar[chosen_index]] = np.empty((1, 1))  # remove from consideration next time
