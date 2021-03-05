@@ -250,3 +250,16 @@ def associate(S, Yn, Zr):
         [distance_to_closest[S[i]], index_of_closest[S[i]]] = np.argmin(D)
 
     return [index_of_closest, distance_to_closest]
+
+
+def proportion_nondominated(Y, Ya):
+    [n, m] = Y.shape
+    p = 0
+    for i in range(n):
+        ge = sum(sum(Ya <= np.tile(Y[i, :], (Ya.shape[0], 1), 2) == m))
+        if ge > 0:
+            if sum(sum(Ya == np.tile(Y[i, :], (Ya.shape[0], 1), 2) == m)) < ge:  # at least one must dominate
+                p = p + 1
+    p = (n - p) / n
+
+    return p
