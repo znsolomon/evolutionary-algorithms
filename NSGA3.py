@@ -9,7 +9,8 @@ class Statistics:
         self.mn = None  # Minimum value of Y (objective values) each generation
         self.hv = None  # Hypervolume indicator each generation
         self.gen_found = None  # track which generation a Pareto solution was discovered
-        self.A = None
+        self.y_store = None  # Stores each generation's objective values
+        self.ya_store = None  # Stores non-dominated set of each Y
 
 
 def NSGA3(generations, cost_function, crossover_function, mutation_function,
@@ -96,6 +97,8 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
         stats.prop_non_dom = np.zeros((generations, 1))
         stats.mn = np.zeros((generations, M))
         stats.hv = np.zeros((generations, 1))
+        stats.y_store = {}
+        stats.ya_store = {}
         stats.gen_found = np.zeros(Ya.shape[0])  # track which generation a Pareto solution was discovered
         hv_points = np.random.randint(0, 1, size=(hv_samp_number, M))
         hv_points = np.multiply(hv_points, np.tile(data.mxb - data.mnb, (hv_samp_number, 1)))
@@ -114,12 +117,12 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
             stats.prop_non_dom[g] = len(non_dom) / len(Y)
             stats.mn[g, :] = np.amin(Y, axis=0)
             [stats.hv[g], hv_points, samps] = est_hv(data.mnb, data.mxb, Ya, hv_points, samps)
-            stats.A[g].Y = Y
-            stats.A[g].Ya = Ya
+            stats.y_store[g] = Y
+            stats.ya_store[g] = Ya
 
             if g % 10 == 0:
-                print('Prop dominated %f, MC samples %d, hypervolume %f\n',
-                      stats.prop_non_dom[g], samps + hv_samp_number, stats.hv[g])
+                print(f"Prop dominated {stats.prop_non_dom[g]}, "
+                      f"MC samples {samps + hv_samp_number}, hypervolume {stats.hv[g]}\n")
 
     return [P, Y, Zsa, Pa, Ya, stats]
 
@@ -129,10 +132,11 @@ def est_hv(mnb, mxb, Ya, hv_points, samps):
 
     to_remove = np.array([])
     for i in range(hv_points.shape[0]):
-        if sum(sum(Ya <= np.tile(hv_points[i, :], (Ya.shape[0], 1), 2) == m)) > 0:
+        if sum(sum(Ya <= np.tile(hv_points[i, :], (Ya.shape[0], 1)))) > 0:
             to_remove = np.append(to_remove, i)
 
-    hv_points[to_remove, :] = []
+    if bool(to_remove):  # If to_remove isn't empty
+        hv_points[to_remove, :] = []
     removed = len(to_remove)
 
     # estimate hypervolume
@@ -145,7 +149,7 @@ def est_hv(mnb, mxb, Ya, hv_points, samps):
     new_points = np.random.randint(0, 1, size=(removed, m))
     new_points = np.multiply(new_points, np.tile(mxb - mnb, (removed, 1)))
     new_points = new_points + np.tile(mnb, (removed, 1))
-    hv_points = np.append(hv_points, new_points)
+    hv_points = np.append(hv_points, new_points, axis=0)
 
     return hv, hv_points, samps
 
