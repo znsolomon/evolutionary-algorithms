@@ -65,9 +65,6 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
         P = initial_population
         start_point = len(P) + 1
 
-    if not passive_archive:
-        passive_archive = 1
-
     # create structured points if aspiration points not passed in
     Zsa = get_structure_points(M, boundary_p, inside_p)
 
@@ -79,6 +76,12 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     for i in range(start_point, pop_size):
         P.append(random_solution_function(data))
     P = np.array(P)
+
+    for i in range(len(P)):
+        x = P[i].X
+        c = P[i].C
+        np.savetxt("data/" + str(i) + "_x.csv", x)
+        np.savetxt("data/" + str(i) + "_c.csv", c)
 
     Y = []
     for i in range(len(P)):
@@ -118,10 +121,11 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
             stats.mn[g, :] = np.amin(Y, axis=0)
             [stats.hv[g], hv_points, samps] = est_hv(data.mnb, data.mxb, Ya, hv_points, samps)
             stats.y_store[g] = Y
+            print(Ya)
             stats.ya_store[g] = Ya
 
             if g % 10 == 0:
-                print(f"Prop dominated {stats.prop_non_dom[g]}, "
+                print(f"Prop non-dominated {stats.prop_non_dom[g]}, "
                       f"MC samples {samps + hv_samp_number}, hypervolume {stats.hv[g]}\n")
 
     return [P, Y, Zsa, Pa, Ya, stats]
@@ -135,7 +139,7 @@ def est_hv(mnb, mxb, Ya, hv_points, samps):
         if sum(sum(Ya <= np.tile(hv_points[i, :], (Ya.shape[0], 1)))) > 0:
             to_remove = np.append(to_remove, i)
 
-    if bool(to_remove):  # If to_remove isn't empty
+    if len(to_remove) != 0:  # If to_remove isn't empty
         hv_points[to_remove, :] = []
     removed = len(to_remove)
 
@@ -197,8 +201,8 @@ def fill_sample(tmp, lb, lambda_index, layer_processing, M):
 
 def nondominated_sort(Ry, extreme_switch):  # Sorts Ry by shell order, ignoring duplicates
     # extreme_switch =1 unless modified
-    # Eliminate duplicates from Ry
-    Ry = np.unique(Ry, axis=0)
+    # Eliminate duplicates from Ry?
+    # Ry = np.unique(Ry, axis=0)
     P_ranks = recursive_pareto_shell_with_duplicates(Ry, extreme_switch)
     # Sort P_ranks into shell order
     m_value = int(max(P_ranks))  # Highest shell number
@@ -237,6 +241,8 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
     # MERGE POPULATIONS
     R = np.concatenate((P, Q), axis=0)
     Ry = np.concatenate((Y, Qy), axis=0)
+    ry_u = np.unique(Ry, axis=0).shape[0]
+    print("Proportion scores repeated: " + str((Ry.shape[0] - ry_u) / Ry.shape[0]))
     # TRUNCATE POPULATION TO GENERATE PARENTS FOR NEXT GENERATION
     F = nondominated_sort(Ry, extreme_switch)
     # each element of F contains the indices of R of the respective shell

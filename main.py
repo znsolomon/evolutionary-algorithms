@@ -12,7 +12,7 @@ class Solution:
 
 if __name__ == '__main__':
     penalties = np.array([0.1, 0.1, 0.1])
-    self_gen = get_sample(alpha=0.1, mnb=5, mxb=3, penalties=penalties)
+    self_gen = get_sample(alpha=0.1, mnb=36, mxb=20, penalties=penalties)
 
     dimensions = 7  # M
     divisions = 4  # p
