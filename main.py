@@ -9,6 +9,12 @@ class Solution:
         self.C = c  # Matrix of coordinator proportions (boolean)[n, m]
         self.X = x  # Matrix of teaching proportions (float)[n, m]
 
+    def compare_to(self, sol):  # Compares to another Solution object
+        if np.array_equal(self.X, sol.X) and np.array_equal(self.C, sol.C):
+            return True
+        else:
+            return False
+
 
 if __name__ == '__main__':
     penalties = np.array([0.1, 0.1, 0.1])
@@ -16,6 +22,6 @@ if __name__ == '__main__':
 
     dimensions = 7  # M
     divisions = 4  # p
-    NSGA3.NSGA3(50, sup.cost, sup.crossover, sup.swap_mutation, sup.swap_random,
-          initial_population=[], boundary_p=(dimensions + divisions - 1), inside_p=divisions, M=dimensions,
-                data=self_gen, pop_size=200, passive_archive=1)
+    NSGA3.NSGA3(200, sup.cost, sup.crossover, sup.swap_mutation, sup.create_random,
+                initial_population=[], boundary_p=(dimensions + divisions - 1), inside_p=divisions, M=dimensions,
+                data=self_gen, pop_size=200, passive_archive=0)

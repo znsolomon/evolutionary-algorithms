@@ -11,6 +11,8 @@ class Statistics:
         self.gen_found = None  # track which generation a Pareto solution was discovered
         self.y_store = None  # Stores each generation's objective values
         self.ya_store = None  # Stores non-dominated set of each Y
+        self.p_repeats = None  # Proportion of population repeated
+        self.y_repeats = None  # Proportion of objective scores repeated
 
 
 def NSGA3(generations, cost_function, crossover_function, mutation_function,
@@ -77,11 +79,11 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
         P.append(random_solution_function(data))
     P = np.array(P)
 
-    for i in range(len(P)):
+    """for i in range(len(P)):
         x = P[i].X
         c = P[i].C
         np.savetxt("data/" + str(i) + "_x.csv", x)
-        np.savetxt("data/" + str(i) + "_c.csv", c)
+        np.savetxt("data/" + str(i) + "_c.csv", c)"""
 
     Y = []
     for i in range(len(P)):
@@ -102,6 +104,8 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
         stats.hv = np.zeros((generations, 1))
         stats.y_store = {}
         stats.ya_store = {}
+        stats.p_repeats = np.zeros((generations, 1))
+        stats.y_repeats = np.zeros((generations, 1))
         stats.gen_found = np.zeros(Ya.shape[0])  # track which generation a Pareto solution was discovered
         hv_points = np.random.randint(0, 1, size=(hv_samp_number, M))
         hv_points = np.multiply(hv_points, np.tile(data.mxb - data.mnb, (hv_samp_number, 1)))
@@ -121,8 +125,18 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
             stats.mn[g, :] = np.amin(Y, axis=0)
             [stats.hv[g], hv_points, samps] = est_hv(data.mnb, data.mxb, Ya, hv_points, samps)
             stats.y_store[g] = Y
-            print(Ya)
             stats.ya_store[g] = Ya
+            repeats = []
+            for i in range(len(P)):
+                if not i in repeats:
+                    solution = P[i]
+                    for j in range(len(P)):
+                        if i != j:
+                            compare = P[j]
+                            if solution.compare_to(compare):
+                                repeats.append(j)
+            stats.p_repeats[g] = len(repeats) / len(P)
+            stats.y_repeats[g] = len(np.unique(Y, axis=0)) / len(Y)
 
             if g % 10 == 0:
                 print(f"Prop non-dominated {stats.prop_non_dom[g]}, "
@@ -134,10 +148,10 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
 def est_hv(mnb, mxb, Ya, hv_points, samps):
     [hv_samp_number, m] = hv_points.shape
 
-    to_remove = np.array([])
+    to_remove = []
     for i in range(hv_points.shape[0]):
         if sum(sum(Ya <= np.tile(hv_points[i, :], (Ya.shape[0], 1)))) > 0:
-            to_remove = np.append(to_remove, i)
+            to_remove.append(i)
 
     if len(to_remove) != 0:  # If to_remove isn't empty
         hv_points[to_remove, :] = []
@@ -202,7 +216,7 @@ def fill_sample(tmp, lb, lambda_index, layer_processing, M):
 def nondominated_sort(Ry, extreme_switch):  # Sorts Ry by shell order, ignoring duplicates
     # extreme_switch =1 unless modified
     # Eliminate duplicates from Ry?
-    # Ry = np.unique(Ry, axis=0)
+    Ry = np.unique(Ry, axis=0)
     P_ranks = recursive_pareto_shell_with_duplicates(Ry, extreme_switch)
     # Sort P_ranks into shell order
     m_value = int(max(P_ranks))  # Highest shell number

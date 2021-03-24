@@ -132,8 +132,9 @@ def cost(s, data):
 def crossover(P, data):
     # Performs crossover on population P
     k = len(P)
-    R_comb = np.random.permutation(k)
+    R_comb = np.random.permutation(k)  # Scramble the order of the population
     for i in range(0, k-1, 2):
+        # Each population member gets assigned as a parent once
         parent1 = P[R_comb[i]]
         parent2 = P[R_comb[i+1]]
         mask_x = np.random.randint(data.m)
@@ -149,7 +150,7 @@ def crossover(P, data):
             child2.C[mask_x, mask_y] = parent1.C[mask_x, mask_y]
 
             P[R_comb[i]] = child1
-            P[R_comb[i]] = child2
+            P[R_comb[i+1]] = child2
     return P
 
 
@@ -189,7 +190,7 @@ def swap_mutation(P, data):
     return P
 
 
-def swap_random(data):
+def create_random(data):
     X = np.zeros((data.m, data.n))
     C = np.zeros((data.m, data.n))
     # Assign coordinations randomly
