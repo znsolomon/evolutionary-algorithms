@@ -2,17 +2,16 @@ import numpy as np
 
 
 def recursive_pareto_shell_with_duplicates(Y, index):
-
-    # function [shell] = recursive_pareto_shell(Y,index)
-
-    # function recursively computes Pareto shell membership:
+    """
+    Recursively computes Pareto shell membership
+    :param Y: A n by m matrix of objectives,
+        where m is the number of objectives and n is the number of points (pop size)
+    :param index: the integer value you wish to attribute to the estimated Pareto-optimal shell (typically 0 or 1)
+    :return: n by 1 array of corresponding shell membership values
+    """
     # Divides population into a number of 'shells'. Each shell contains the non-dominated solutions of Y.
     # Each recursive shell computes the non-dominated solutions of Y, excluding solutions already in shells.
 
-    # Y = A n by m matrix of objectives, where m is the number of objectives and n is the number of points (pop size)
-    # index = the integer value you wish to attribute to the estimated Pareto-optimal shell (typically 0 or 1)
-
-    # shell = n by 1 array of corresponding shell membership values
     [n, m] = Y.shape
     S = np.zeros((n, 1))
     shell = np.zeros(n)
@@ -32,9 +31,6 @@ def recursive_pareto_shell_with_duplicates(Y, index):
         else:
             S[i] = 1
             dom_indices.append(int(i))
-        # Old code
-        # S[i] = sum((sum(Y <= np.tile(Y[i, :], (n, 1)), 2) == m) & (sum(Y < np.tile(Y[i, :], (n, 1)), 2) > 0))
-        # S = S+1
     shell[dom_indices] = index
 
     if sum(S) == n:  # if at last shell, terminate and chain back
@@ -44,7 +40,13 @@ def recursive_pareto_shell_with_duplicates(Y, index):
         return shell
 
 
-def domination(a, b):  # Check if solution a dominates solution b
+def domination(a, b):
+    """
+    Check if solution a dominates solution b (for minimising objective values)
+    :param a:
+    :param b:
+    :return:
+    """
     if np.array_equal(a, b):
         return False  # If a and b are equal, they do not dominate
     for i in range(len(a)):

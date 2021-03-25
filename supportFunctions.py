@@ -4,7 +4,18 @@ from main import Solution
 
 
 def get_combined_workload(X, C, w_star, c_matrix, d_matrix, p_matrix, alpha, T):
-    # Calculates the total workload for each staff member and puts in an array
+    """
+    Calculates the total workload for each staff member
+    :param X: Matrix of teaching proportions
+    :param C: Matrix of module co-ordinations
+    :param w_star: Array containing non-teaching workload of each staff member
+    :param c_matrix: Coordinator hours of each module
+    :param d_matrix: Contact hours of each module
+    :param p_matrix: Prep hours of each module
+    :param alpha: Hyperparameter affecting how much teaching the module already affects prep hours
+    :param T: Matrix showing if staff member i has taught module j
+    :return: Array containing teaching workloads for each staff member
+    """
     # Calculate matrix of teaching loads:
     temp = np.multiply(c_matrix, C)\
            + np.multiply((d_matrix + np.multiply((1 + alpha * T), p_matrix)), X)
@@ -13,55 +24,59 @@ def get_combined_workload(X, C, w_star, c_matrix, d_matrix, p_matrix, alpha, T):
 
 
 def unbalanced_workload(w, h):
+    """
+    Calculates the largest difference between contractual hours and workload
+    :param w: Array containing workloads of each teacher
+    :param h: Array containing contractual hours of each teacher
+    :return: Largest difference between w and h
+    """
     return max(np.divide(w, h)) - min(np.divide(w, h))
 
 
-def staff_dissatisfaction(x, p, level, increment_number):
-    # Returns dissatisfaction, scaled by proportion of dissatisfying modules being taught
-    # Returns values of X where dissatisfaction in P is >= the level of dissatisfaction
-    # x: Matrix of which staff are teaching which modules
-    # p: Matrix of staff module preference
-    # level: Amount of dissatisfaction to measure
-    dissatisfactions = []
-    for i in range(x.shape[0]):  # For each teacher
-        dis_inc = 0
-        for j in range(x.shape[1]):  # For each module
-            if p[i, j] >= level:
-                dis_inc += p[i, j] * x[i, j]
-        dissatisfactions.append(dis_inc)
-    return max(dissatisfactions)
-    # Original code:
-    # return max(sum(np.multiply((np.divide(X, np.tile(increment_number, (1, (X, 2).shape)))), (P >= level))))
-
-
-def staff_total_dissatisfaction(x, p, level, increment_number):
-    # x: Matrix of which staff are teaching which modules
-    # p: Matrix of staff module preference
-    # level: Amount of dissatisfaction to measure
-    dissatisfactions = []
+def staff_total_dissatisfaction(x, p, level):
+    """
+    Calculates dissatisfaction, scaled by proportion of dissatisfying modules being taught
+    :param x: Matrix of which staff are teaching which modules
+    :param p: Matrix of staff module preference
+    :param level: Amount of dissatisfaction to measure
+    :return: The value of X where dissatisfaction is highest
+    """
+    dissatisfaction = []
     for j in range(x.shape[1]):  # For each teacher
         dis_inc = 0
         for i in range(x.shape[0]):  # For each module
             if p[i, j] >= level:
                 dis_inc += p[i, j] * x[i, j]
-        dissatisfactions.append(dis_inc)
-    return sum(dissatisfactions)
-    # Original code:
-    # return sum(sum(np.multiply((np.divide(X, np.tile(increment_number, (1, (X, 2).shape)))), (P >= level))))
+        dissatisfaction.append(dis_inc)
+    return sum(dissatisfaction)
 
 
 def average_staff_per_module(x):
-    # Gets average number of staff teaching each module
-    # x: Matrix of which staff are teaching which modules
+    """
+    Calculates average number of staff teaching each module
+    :param x: Matrix of which staff are teaching which modules
+    :return: Average number of staff teaching each module
+    """
     sum_staff = 0
     for i in range(x.shape[0]):  # For each module
         sum_staff += sum(x[i, :] != 0)
     return sum_staff / x.shape[1]
-    # Original code:
-    # return sum(sum(x != 0))/(x,1).shape
 
 
 def peak_load(X, C, h, c_matrix, d_matrix, p_matrix, t_matrix, alpha, T):
+    """
+    Calculates how each teacher's workload changes between term 1 and term 2, prioritising balanced workloads
+    :param X: Matrix of teaching proportions
+    :param C: Matrix of teaching coordinations
+    :param h: Contractual hours of each staff member
+    :param c_matrix: Coordinator hours of each module
+    :param d_matrix: Contact hours of each module
+    :param p_matrix: Prep hours of each module
+    :param t_matrix: Enum of which term each module is taught in (1/2)
+    :param alpha: Hyperparameter affecting how much teaching the module already affects prep hours
+    :param T: Matrix showing if staff member i has taught module j
+    :return: The maximum unbalanced workload (most hours in either term 1 or term 2)
+    """
     # Calculate matrix of teaching loads:
     temp = np.multiply(c_matrix, C) \
            + np.multiply((d_matrix + np.multiply((1 + alpha * T.reshape(X.shape)), p_matrix)), X)
@@ -69,18 +84,22 @@ def peak_load(X, C, h, c_matrix, d_matrix, p_matrix, t_matrix, alpha, T):
     return max(abs(sum(np.divide(np.multiply(temp, (t_matrix == 1)) - np.multiply(temp, (t_matrix == 2)), h))))
 
 
-def variation_from_previous_year_teach(X, X_old, increment_number):
+def variation_from_previous_year_teach(X, X_old):
+    """
+    Calculates how this year's teaching differs from last year's
+    :param X: This year's teaching allocation
+    :param X_old: Last year's teaching allocation
+    :return: Collected difference between X and X_old
+    """
     return sum(sum(abs(X - X_old.reshape(X.shape))))
 
 
 def cost(s, data):
-    """Seven-objective cost function
-    INPUTS
-    s - solution (matrix of X and C values)
-    data - Data structure seen in main.py
-    OUTPUTS
-    y - objective vector (to minimise)
-    W - combined matrix of staff workloads
+    """
+    Finds the objective values (7) of a solution
+    :param s: The solution
+    :param data: Data object containing information about the problem
+    :return: Objective vector of s
     """
     X = s.X / np.tile(data.increment_number, (1, data.n))
     data.pref = np.reshape(data.pref, X.shape)  # Fit preferences to shape of X
@@ -88,11 +107,11 @@ def cost(s, data):
     w = get_combined_workload(X, s.C, data.workload, data.c_matrix, data.d_matrix, data.p_matrix, data.alpha, data.t)
     y[0] = sum(w) / sum(data.h)
     y[1] = unbalanced_workload(w, data.h)
-    y[2] = staff_total_dissatisfaction(X, data.pref, 1, data.increment_number)
-    y[3] = staff_dissatisfaction(X, data.pref, 2, data.increment_number)
+    y[2] = staff_total_dissatisfaction(X, data.pref, 1)
+    y[3] = staff_total_dissatisfaction(X, data.pref, 2)
     y[4] = average_staff_per_module(X)
     y[5] = peak_load(X, s.C, data.h, data.c_matrix, data.d_matrix, data.p_matrix, data.t_matrix, data.alpha, data.t)
-    y[6] = variation_from_previous_year_teach(X, data.r / 100, data.increment_number)
+    y[6] = variation_from_previous_year_teach(X, data.r / 100)
 
     if data.constraints_on:
         for i in range(data.m):  # For each module
@@ -105,32 +124,17 @@ def cost(s, data):
                     y = y + (data.penalties[2] * abs(s.X[i, j]))
                 elif s.X[i, j] > 1:
                     y = y + (data.penalties[2] * abs(s.X[i, j]) - 1)
-        """
-        Old code:
-            if sum(s.X[i, :] > 0) < data.module_minimum[i]:  # Every module should be taught properly
-                y[data.objective_mask] = \
-                    y[data.objective_mask] + data.mxb * (data.module_minimum[i] - sum(s.X[i, :] > 0))
-            # Total teaching allocation of module shouldn't be greater than module maximum
-            if sum(s.X[i, :] > data.module_maximum[i]) > 0:
-                y[data.objective_mask] = \
-                    y[data.objective_mask] + data.mxb * (abs(data.module_maximum[i] - sum(s.X[i, :] > 0)))
-
-        mx_p = 10
-        for i in range(len(data.n)):
-            if sum(s.X[data.all_project_indices, i]) > mx_p:  # total projects
-                y[data.objective_mask] = \
-                    y[data.objective_mask] + (sum(s.X[data.all_project_indices, i]) - mx_p) * data.mxb
-
-        # penalise assignment to prevent marked mappings
-        temp = sum(sum(s.X[data.prevent == 1]))
-        y[data.objective_mask] = y[data.objective_mask]+ temp * data.mxb
-        """
 
     return y
 
 
 def crossover(P, data):
-    # Performs crossover on population P
+    """
+    Performs crossover mutation on population
+    :param P: Population of solutions
+    :param data: Data object containing information about the problem
+    :return: P after crossover has been performed
+    """
     k = len(P)
     R_comb = np.random.permutation(k)  # Scramble the order of the population
     for i in range(0, k-1, 2):
@@ -155,6 +159,12 @@ def crossover(P, data):
 
 
 def swap_mutation(P, data):
+    """
+    Performs swap mutation on population
+    :param P: Population of solutions
+    :param data: Data object containing information about the problem
+    :return: P after mutation has been performed
+    """
     # Performs swap mutation on population P
     max_to_vary = 1  # NO. elements to switch on
     for i in range(len(P)):
@@ -191,6 +201,11 @@ def swap_mutation(P, data):
 
 
 def create_random(data):
+    """
+    Creates random solutions, given the data of the problem
+    :param data: Data object containing information about the problem
+    :return: Solution object
+    """
     X = np.zeros((data.m, data.n))
     C = np.zeros((data.m, data.n))
     # Assign coordinations randomly
