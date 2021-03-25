@@ -263,3 +263,30 @@ def proportion_nondominated(Y, Ya):
     p = (n - p) / n
 
     return p
+
+
+def est_hv(mnb, mxb, Ya, hv_points, samps):
+    [hv_samp_number, m] = hv_points.shape
+
+    to_remove = []
+    for i in range(hv_points.shape[0]):
+        if sum(sum(Ya <= np.tile(hv_points[i, :], (Ya.shape[0], 1)))) > 0:
+            to_remove.append(i)
+
+    if len(to_remove) != 0:  # If to_remove isn't empty
+        hv_points[to_remove, :] = []
+    removed = len(to_remove)
+
+    # estimate hypervolume
+    hv = (hv_samp_number - removed) / (samps + hv_samp_number)
+
+    # update number dominated
+    samps = samps + removed
+
+    # refill random samps to 1000
+    new_points = np.random.randint(0, 1, size=(removed, m))
+    new_points = np.multiply(new_points, np.tile(mxb - mnb, (removed, 1)))
+    new_points = new_points + np.tile(mnb, (removed, 1))
+    hv_points = np.append(hv_points, new_points, axis=0)
+
+    return hv, hv_points, samps
