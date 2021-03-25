@@ -2,6 +2,7 @@ import numpy as np
 import NSGA3
 import supportFunctions as sup
 from generateData import get_sample
+from matplotlib import pyplot as plt
 
 
 class Solution:
@@ -22,6 +23,13 @@ if __name__ == '__main__':
 
     dimensions = 7  # M
     divisions = 4  # p
-    NSGA3.NSGA3(200, sup.cost, sup.crossover, sup.swap_mutation, sup.create_random,
+    [population, obj_values, struc_points, pop_archive, obj_archive, stats, non_dom] = \
+        NSGA3.NSGA3(200, sup.cost, sup.crossover, sup.swap_mutation, sup.create_random,
                 initial_population=[], boundary_p=(dimensions + divisions - 1), inside_p=divisions, M=dimensions,
-                data=self_gen, pop_size=200, passive_archive=0)
+                data=self_gen, pop_size=200, passive_archive=1)
+    plt.title("Hypervolume over time")
+    plt.xlabel("Generation")
+    plt.ylabel("Hypervolume")
+    plt.plot(range(200), stats.hv)
+    plt.show()
+    print(non_dom)
