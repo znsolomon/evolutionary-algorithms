@@ -1,4 +1,5 @@
 import numpy as np
+from pymoo.factory import get_performance_indicator
 
 from recursive_parento_shell_with_duplicates import recursive_pareto_shell_with_duplicates
 
@@ -37,7 +38,6 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     passive_archive = OPTIONAL ARGUMENT(set at 1 if not provided).
         If equal to 1 a passive archive tracking best solutions evaluated during run is maintained and returned
         in stats structure
-    no_obj: number of objectives
     extreme_switch = OPTIONAL ARGUMENT If set at 1 the solutions at the extremes
         (minimising each criterion) are always preserved in the selection from one generation to the next
         Default 1
@@ -123,7 +123,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
         if passive_archive:
             stats.prop_non_dom[g] = len(non_dom) / len(Y)
             stats.mn[g, :] = np.amin(Y, axis=0)
-            [stats.hv[g], hv_points, samps] = est_hv(data.mnb, data.mxb, Ya, hv_points, samps)
+            stats.hv[g] = est_hv(Y)
             stats.y_store[g] = Y
             stats.ya_store[g] = Ya
             repeats = []
@@ -142,34 +142,15 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
                 print(f"Prop non-dominated {stats.prop_non_dom[g]}, "
                       f"MC samples {samps + hv_samp_number}, hypervolume {stats.hv[g]}\n")
 
-    return [P, Y, Zsa, Pa, Ya, stats]
+    return [P, Y, Zsa, Pa, Ya, stats, non_dom]
 
 
-def est_hv(mnb, mxb, Ya, hv_points, samps):
-    [hv_samp_number, m] = hv_points.shape
-
-    to_remove = []
-    for i in range(hv_points.shape[0]):
-        if sum(sum(Ya <= np.tile(hv_points[i, :], (Ya.shape[0], 1)))) > 0:
-            to_remove.append(i)
-
-    if len(to_remove) != 0:  # If to_remove isn't empty
-        hv_points[to_remove, :] = []
-    removed = len(to_remove)
-
-    # estimate hypervolume
-    hv = (hv_samp_number - removed) / (samps + hv_samp_number)
-
-    # update number dominated
-    samps = samps + removed
-
-    # refill random samps to 1000
-    new_points = np.random.randint(0, 1, size=(removed, m))
-    new_points = np.multiply(new_points, np.tile(mxb - mnb, (removed, 1)))
-    new_points = new_points + np.tile(mnb, (removed, 1))
-    hv_points = np.append(hv_points, new_points, axis=0)
-
-    return hv, hv_points, samps
+def est_hv(Y):
+    # Find reference point: 1.1 * largest point in each generation
+    ref_point = 1.1 * np.amax(Y, axis=0)
+    # Find hypervolume given reference point
+    hv = get_performance_indicator("hv", ref_point=ref_point)
+    return "{:.16f}".format(float(hv.calc(Y)))
 
 
 def get_structure_points(M, boundary_p, inside_p):
