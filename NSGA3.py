@@ -9,9 +9,6 @@ class Statistics:
         self.prop_non_dom = None  # Proportion of nondominated solutions each generation
         self.mn = None  # Minimum value of Y (objective values) each generation
         self.hv = None  # Hypervolume indicator each generation
-        self.gen_found = None  # track which generation a Pareto solution was discovered
-        self.y_store = None  # Stores each generation's objective values
-        self.ya_store = None  # Stores non-dominated set of each Y
         self.p_repeats = None  # Proportion of population repeated
         self.y_repeats = None  # Proportion of objective scores repeated
 
@@ -58,7 +55,6 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     recursive_pareto_shell_with_duplicates function
     """
 
-    hv_samp_number = 10000
     structure_flag = 0
     P = []
     stats = Statistics()
@@ -75,16 +71,12 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
 
     print(f"Population size is: {pop_size}\n")
 
+    # Create random starting population using the random solution function
     for i in range(start_point, pop_size):
         P.append(random_solution_function(data))
     P = np.array(P)
 
-    """for i in range(len(P)):
-        x = P[i].X
-        c = P[i].C
-        np.savetxt("data/" + str(i) + "_x.csv", x)
-        np.savetxt("data/" + str(i) + "_c.csv", c)"""
-
+    # Evaluate costs of the initial population
     Y = []
     for i in range(len(P)):
         Y.append(cost_function(P[i], data))
@@ -102,30 +94,21 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
         stats.prop_non_dom = np.zeros((generations, 1))
         stats.mn = np.zeros((generations, M))
         stats.hv = np.zeros((generations, 1))
-        stats.y_store = {}
-        stats.ya_store = {}
         stats.p_repeats = np.zeros((generations, 1))
         stats.y_repeats = np.zeros((generations, 1))
-        stats.gen_found = np.zeros(Ya.shape[0])  # track which generation a Pareto solution was discovered
-        hv_points = np.random.randint(0, 1, size=(hv_samp_number, M))
-        hv_points = np.multiply(hv_points, np.tile(data.mxb - data.mnb, (hv_samp_number, 1)))
-        hv_points = hv_points + np.tile(data.mnb, (hv_samp_number, 1))
-        samps = 0
 
     for g in range(generations):
         print(g)
         if g % 10 == 0:
             print(f"generation {g}, pop_size {pop_size}, passive archive size {len(Ya)} \n")
             # min(Y)  --> What is this line doing?
-        [P, Y, Pa, Ya, non_dom, S, Ry] = evolve(Zsa, P, Y, pop_size, cost_function, crossover_function,
+        [P, Y, Pa, Ya] = evolve(Zsa, P, Y, pop_size, cost_function, crossover_function,
                                                 mutation_function, structure_flag, data, Pa, Ya, passive_archive,
                                                 extreme_switch)
         if passive_archive:
-            stats.prop_non_dom[g] = len(non_dom) / len(Y)
+            stats.prop_non_dom[g] = len(Pa) / len(Y)
             stats.mn[g, :] = np.amin(Y, axis=0)
             stats.hv[g] = est_hv(Y)
-            stats.y_store[g] = Y
-            stats.ya_store[g] = Ya
             repeats = []
             for i in range(len(P)):
                 if not i in repeats:
@@ -140,12 +123,17 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
 
             if g % 10 == 0:
                 print(f"Prop non-dominated {stats.prop_non_dom[g]}, "
-                      f"MC samples {samps + hv_samp_number}, hypervolume {stats.hv[g]}\n")
+                      f"hypervolume {stats.hv[g]}\n")
 
-    return [P, Y, Zsa, Pa, Ya, stats, non_dom]
+    return [P, Y, Zsa, Pa, Ya, stats]
 
 
 def est_hv(Y):
+    """
+    Gets hypervolume estimate from population
+    :param Y: Population objective values
+    :return: Hypervolume estimate
+    """
     # Find reference point: 1.1 * largest point in each generation
     ref_point = 1.1 * np.amax(Y, axis=0)
     # Find hypervolume given reference point
@@ -194,7 +182,13 @@ def fill_sample(tmp, lb, lambda_index, layer_processing, M):
     return tmp_processed
 
 
-def nondominated_sort(Ry, extreme_switch):  # Sorts Ry by shell order, ignoring duplicates
+def nondominated_sort(Ry, extreme_switch):
+    """
+    Sorts Ry by shell order, ignoring duplicates
+    :param Ry: Objective values of expanded population (400 members)
+    :param extreme_switch: First shell to use
+    :return: Dictionary of each shell, mapped to index values of each pop member in the shells
+    """
     # extreme_switch =1 unless modified
     # Eliminate duplicates from Ry?
     Ry = np.unique(Ry, axis=0)
@@ -212,11 +206,27 @@ def nondominated_sort(Ry, extreme_switch):  # Sorts Ry by shell order, ignoring 
 
 def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
            structure_flag, data, Pa, Ya, passive_archive, extreme_switch):
-    # Za Aspiration points
-    # Zr reference points
-    # P structure of parents
-    # Y objective evaluations of P, matrix | P | by M
-
+    """
+    Evolves the population.
+    :param Zsa:
+    :param P: Population of solutions
+    :param Y: Objective values of population
+    :param N: Size of population
+    :param cost_function: supportFunctions.py cost()
+    :param crossover_function: supportFunctions.py crossover()
+    :param mutation_function: supportFunctions.py swap_mutation()
+    :param structure_flag:
+    :param data: Data class instance containing information about the problem
+    :param Pa: Current non-dominated set of P
+    :param Ya: Objective values of current non-dominated set
+    :param passive_archive: Boolean showing if statistics are being recorded
+    :param extreme_switch: If set at 1 the solutions at the extremes
+        (minimising each criterion) are always preserved in the selection from one generation to the next
+    :return P: Updated P values
+    :return Y: Updated Y values
+    :return Pa: Updated Pa values
+    :return Ya: Updated Ya values
+    """
     S = []
     Q = crossover_function(P, data)
     Q = mutation_function(Q, data)
@@ -226,13 +236,6 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
         Qy.append(cost_function(Q[j], data))
     Qy = np.array(Qy)
 
-    if passive_archive:
-        P_ranks = recursive_pareto_shell_with_duplicates(Qy, 0)
-        to_compare = np.argwhere(P_ranks == 0)
-        to_compare = [i[0] for i in to_compare]
-        Ya = Qy[to_compare, :]
-        Pa = Q[to_compare]
-
     # MERGE POPULATIONS
     R = np.concatenate((P, Q), axis=0)
     Ry = np.concatenate((Y, Qy), axis=0)
@@ -241,8 +244,11 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
     # TRUNCATE POPULATION TO GENERATE PARENTS FOR NEXT GENERATION
     F = nondominated_sort(Ry, extreme_switch)
     # each element of F contains the indices of R of the respective shell
+    # Save non-dominated set into Pa and Ya for statistics
     nd = F[0]
     nd = [i[0] for i in nd]
+    Pa = R[nd]
+    Ya = Ry[nd]
 
     # Fill S up with shells
     i = 0
@@ -287,13 +293,18 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
         P = R[S.astype(int)]
         Y = Ry[S.astype(int), :]
 
-    return [P, Y, Pa, Ya, nd, S, Ry]
+    return [P, Y, Pa, Ya]
 
 
 def normalise(S, Y, Zsa, structure_flag):
-    # OUTPUTS
-    # Yn = normalised objectives
-    # Assumes no preset bounds
+    """
+    Normalises objective values, assuming no preset bounds
+    :param S: Index values of solutions allowed into the new population
+    :param Y: Objective values of entire population
+    :param Zsa:
+    :param structure_flag:
+    :return: Yn = normalised objectives
+    """
     S = S.astype(int)
     M = Y.shape[1]  # get number of objectives
     ideal = np.amin(Y, axis=0)  # initialise ideal point by finding smallest value
@@ -348,6 +359,12 @@ def normalise(S, Y, Zsa, structure_flag):
 
 
 def perpendicular_distance(direction, point):
+    """
+    Calculates perpendicular distance between direction and point.
+    :param direction:
+    :param point:
+    :return:
+    """
     k = np.dot(direction, point) / np.sum(np.power(direction, 2))
     d = np.sum(np.power(np.subtract(np.multiply(direction, [k] * len(direction)), point), 2))
     return np.sqrt(d)
