@@ -142,6 +142,13 @@ def est_hv(Y):
 
 
 def get_structure_points(M, boundary_p, inside_p):
+    """
+    Place reference points on a normalised hyperplane
+    :param M: Number of objectives
+    :param boundary_p: Number of divisions for each objective axis (on the boundary)
+    :param inside_p: Number of divisions for each objective axis (inside the hyperplane)
+    :return: Evenly spaced reference points on a normalised hyperplane
+    """
     Zs = get_simplex_samples(M, boundary_p)
     Zs_inside = get_simplex_samples(M, inside_p)
     Zs_inside = Zs_inside / 2  # retract
@@ -152,7 +159,13 @@ def get_structure_points(M, boundary_p, inside_p):
 
 
 def get_simplex_samples(M, p):
-    lb = np.linspace(0, p)  # Evenly spaced numbers from o to p
+    """
+    Generate evenly spaced points along a simplex
+    :param M: Number of objectives (dimensions)
+    :param p: Number of divisions for each objective axis
+    :return: Array containing points
+    """
+    lb = np.linspace(0, p)  # Evenly spaced numbers from 0 to p
     lb = lb / p
     Zs = []
 
@@ -165,6 +178,15 @@ def get_simplex_samples(M, p):
 
 
 def fill_sample(tmp, lb, lambda_index, layer_processing, M):
+    """
+    Fills a reference point with the correct values
+    :param tmp: Reference point to be filled
+    :param lb: Evenly spaced numbers from 0 to p
+    :param lambda_index: which value of lb is currently being processed
+    :param layer_processing: Which layer the recursive algorithm is currently on (starts at 0)
+    :param M: Number of objectives
+    :return: M-dimensional reference point
+    """
     tmp[layer_processing] = lb[lambda_index]  # Sets current layer of tmp to current lambda
     if layer_processing < M - 2:  # For each layer but the second-last and last
         already_used = sum(tmp[0:layer_processing])  # Values of tmp already filled
