@@ -15,44 +15,29 @@ class Statistics:
 
 def NSGA3(generations, cost_function, crossover_function, mutation_function,
           random_solution_function, initial_population, boundary_p, inside_p, M,
-          data, passive_archive, pop_size, extreme_switch=0):
+          data, passive_archive, pop_size):
     """
-    INPUTS
-
-    generations = number of generations to run optimiser for
-    cost_function = handle of function to be optimised
-    crossover_function = handle of crossover function
-    mutation_function = handle of mutation function
-    random_solution_function = handle of function which supplies random legal solutions
-    initial_population = holds initial solutions for evaluation, pass an empty matrix,
+    Runs NSGA-3 algorithm on a population.
+    :param generations: number of generations to run optimiser for
+    :param cost_function: handle of function to be optimised
+    :param crossover_function: handle of crossover function
+    :param mutation_function: handle of mutation function
+    :param random_solution_function: handle of function which supplies random legal solutions
+    :param initial_population: holds initial solutions for evaluation, pass an empty matrix,
         [], if no initial solutions available
-    boundary_p = number of projection points on simplex boundary (scales up with dimension)
-    inside_p = number of projection points on inside boundary (scales up with dimension)
-    M = Input dimension of problem (Number of objectives?)
-    data = structure holding bounds to be used if preset bounds argument is
-        1(l_bound and u_bound vectors for problem dimension)
-        and any additional project specific data(e.g.staff / module data for staff allocation optimisation)
-    passive_archive = OPTIONAL ARGUMENT(set at 1 if not provided).
-        If equal to 1 a passive archive tracking best solutions evaluated during run is maintained and returned
-        in stats structure
-    extreme_switch = OPTIONAL ARGUMENT If set at 1 the solutions at the extremes
-        (minimising each criterion) are always preserved in the selection from one generation to the next
-        Default 1
-    preset_bounds = OPTIONAL ARGUMENT if preset_bounds is 1
-        then the bounds in data argument are to be used in simplex projection, set at 0 if not provided
-
-    OUTPUTS
-
+    :param boundary_p: number of projection points on simplex boundary (scales up with dimension)
+    :param inside_p: number of projection points on inside boundary (scales up with dimension)
+    :param M: Number of objectives
+    :param data: 'Data' object holding information about the problem
+    :param passive_archive: If 1, statistics are tracked throughout the generations
+    :param pop_size: Size of population
+    :return:
     P = Final search population
     Y = Objective values of final serach population
     Zsa = Projection of P
     Pa = Non - dominated subset of P
     Ya = Non - dominated subset of Y
     stats = Structure of various recorded statistics
-
-    REQUIRES
-
-    recursive_pareto_shell_with_duplicates function
     """
 
     structure_flag = 0
@@ -103,8 +88,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
             print(f"generation {g}, pop_size {pop_size}, passive archive size {len(Ya)} \n")
             # min(Y)  --> What is this line doing?
         [P, Y, Pa, Ya] = evolve(Zsa, P, Y, pop_size, cost_function, crossover_function,
-                                                mutation_function, structure_flag, data, Pa, Ya, passive_archive,
-                                                extreme_switch)
+                                                mutation_function, structure_flag, data, Pa, Ya, passive_archive)
         if passive_archive:
             stats.prop_non_dom[g] = len(Pa) / len(Y)
             stats.mn[g, :] = np.amin(Y, axis=0)
@@ -182,17 +166,15 @@ def fill_sample(tmp, lb, lambda_index, layer_processing, M):
     return tmp_processed
 
 
-def nondominated_sort(Ry, extreme_switch):
+def nondominated_sort(Ry):
     """
     Sorts Ry by shell order, ignoring duplicates
     :param Ry: Objective values of expanded population (400 members)
-    :param extreme_switch: First shell to use
     :return: Dictionary of each shell, mapped to index values of each pop member in the shells
     """
-    # extreme_switch =1 unless modified
-    # Eliminate duplicates from Ry?
+    # Eliminate duplicates from Ry
     Ry = np.unique(Ry, axis=0)
-    P_ranks = recursive_pareto_shell_with_duplicates(Ry, extreme_switch)
+    P_ranks = recursive_pareto_shell_with_duplicates(Ry, 0)
     # Sort P_ranks into shell order
     m_value = int(max(P_ranks))  # Highest shell number
     shell_values = np.unique(P_ranks)
@@ -205,10 +187,10 @@ def nondominated_sort(Ry, extreme_switch):
 
 
 def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
-           structure_flag, data, Pa, Ya, passive_archive, extreme_switch):
+           structure_flag, data, Pa, Ya, passive_archive):
     """
     Evolves the population.
-    :param Zsa:
+    :param Zsa: Structured reference points for use in normalisation
     :param P: Population of solutions
     :param Y: Objective values of population
     :param N: Size of population
@@ -216,12 +198,11 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
     :param crossover_function: supportFunctions.py crossover()
     :param mutation_function: supportFunctions.py swap_mutation()
     :param structure_flag:
+        Shows if we are using pre-supplied points or structure points created at the algorithm's start
     :param data: Data class instance containing information about the problem
     :param Pa: Current non-dominated set of P
     :param Ya: Objective values of current non-dominated set
     :param passive_archive: Boolean showing if statistics are being recorded
-    :param extreme_switch: If set at 1 the solutions at the extremes
-        (minimising each criterion) are always preserved in the selection from one generation to the next
     :return P: Updated P values
     :return Y: Updated Y values
     :return Pa: Updated Pa values
@@ -242,7 +223,7 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
     ry_u = np.unique(Ry, axis=0).shape[0]
     print("Proportion scores repeated: " + str((Ry.shape[0] - ry_u) / Ry.shape[0]))
     # TRUNCATE POPULATION TO GENERATE PARENTS FOR NEXT GENERATION
-    F = nondominated_sort(Ry, extreme_switch)
+    F = nondominated_sort(Ry)
     # each element of F contains the indices of R of the respective shell
     # Save non-dominated set into Pa and Ya for statistics
     nd = F[0]
@@ -301,7 +282,7 @@ def normalise(S, Y, Zsa, structure_flag):
     Normalises objective values, assuming no preset bounds
     :param S: Index values of solutions allowed into the new population
     :param Y: Objective values of entire population
-    :param Zsa:
+    :param Zsa: Structured reference points
     :param structure_flag:
     :return: Yn = normalised objectives
     """
