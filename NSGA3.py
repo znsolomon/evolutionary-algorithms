@@ -9,8 +9,7 @@ class Statistics:
         self.prop_non_dom = None  # Proportion of nondominated solutions each generation
         self.mn = None  # Minimum value of Y (objective values) each generation
         self.hv = None  # Hypervolume indicator each generation
-        self.p_repeats = None  # Proportion of population repeated
-        self.y_repeats = None  # Proportion of objective scores repeated
+        self.ry_repeats = None  # Proportion of Ry population that aren't unique
 
 
 def NSGA3(generations, cost_function, crossover_function, mutation_function,
@@ -79,20 +78,20 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
         stats.prop_non_dom = np.zeros((generations, 1))
         stats.mn = np.zeros((generations, M))
         stats.hv = np.zeros((generations, 1))
-        stats.p_repeats = np.zeros((generations, 1))
-        stats.y_repeats = np.zeros((generations, 1))
+        stats.ry_repeats = np.zeros((generations, 1))
 
     for g in range(generations):
         print(g)
         if g % 10 == 0:
             print(f"generation {g}, pop_size {pop_size}, passive archive size {len(Ya)} \n")
-            # min(Y)  --> What is this line doing?
-        [P, Y, Pa, Ya] = evolve(Zsa, P, Y, pop_size, cost_function, crossover_function,
+        [P, Y, Pa, Ya, Ry_repeats] = evolve(Zsa, P, Y, pop_size, cost_function, crossover_function,
                                                 mutation_function, structure_flag, data, Pa, Ya, passive_archive)
         if passive_archive:
             stats.prop_non_dom[g] = len(Pa) / len(Y)
             stats.mn[g, :] = np.amin(Y, axis=0)
             stats.hv[g] = est_hv(Y)
+            stats.ry_repeats[g] = Ry_repeats
+            """ If counting repeats in P and Y, use:
             repeats = []
             for i in range(len(P)):
                 if not i in repeats:
@@ -103,7 +102,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
                             if solution.compare_to(compare):
                                 repeats.append(j)
             stats.p_repeats[g] = len(repeats) / len(P)
-            stats.y_repeats[g] = len(np.unique(Y, axis=0)) / len(Y)
+            stats.y_repeats[g] = len(np.unique(Y, axis=0)) / len(Y)"""
 
             if g % 10 == 0:
                 print(f"Prop non-dominated {stats.prop_non_dom[g]}, "
@@ -242,16 +241,18 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
     # MERGE POPULATIONS
     R = np.concatenate((P, Q), axis=0)
     Ry = np.concatenate((Y, Qy), axis=0)
-    ry_u = np.unique(Ry, axis=0).shape[0]
-    print("Proportion scores repeated: " + str((Ry.shape[0] - ry_u) / Ry.shape[0]))
     # TRUNCATE POPULATION TO GENERATE PARENTS FOR NEXT GENERATION
     F = nondominated_sort(Ry)
     # each element of F contains the indices of R of the respective shell
     # Save non-dominated set into Pa and Ya for statistics
     nd = F[0]
     nd = [i[0] for i in nd]
-    Pa = R[nd]
-    Ya = Ry[nd]
+    if passive_archive:
+        ry_u = np.unique(Ry, axis=0).shape[0]
+        ry_repeats = (Ry.shape[0] - ry_u) / Ry.shape[0]
+        # print("Proportion scores repeated: " + str((Ry.shape[0] - ry_u) / Ry.shape[0]))
+        Pa = R[nd]
+        Ya = Ry[nd]
 
     # Fill S up with shells
     i = 0
@@ -296,7 +297,7 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
         P = R[S.astype(int)]
         Y = Ry[S.astype(int), :]
 
-    return [P, Y, Pa, Ya]
+    return [P, Y, Pa, Ya, ry_repeats]
 
 
 def normalise(S, Y, Zsa, structure_flag):
