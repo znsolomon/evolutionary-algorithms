@@ -45,3 +45,26 @@ if __name__ == '__main__':
     plt.ylabel("Proportion non-dominated")
     plt.plot(range(200), stats.prop_non_dom)
     plt.show()
+
+    objective_names = ["Total workload", "Balanced workload", "Dissatisfaction 1", "Dissatisfaction 2",
+                       "Average staff per module", "Peak load", "Variation from previous year"]
+    values = []
+    for i in range(7):
+        values.append(stats.mn[:, i])
+    plt.figure(4)
+    plt.title("Minimum value of each objective over generations")
+    plt.xlabel("Generation")
+    plt.ylabel("Minimum objective value")
+    for i in range(7):
+        plt.plot(range(200), values[i], label=objective_names[i])
+    plt.legend()
+    plt.show()
+    plt.figure(5)
+    plt.title("Minimum value of each objective over generations, bounded")
+    plt.xlabel("Generation")
+    plt.ylabel("Minimum objective value")
+    for i in range(7):
+        plt.plot(range(200), values[i], label=objective_names[i])
+    plt.ylim(0, 100000)
+    plt.legend()
+    plt.show()
