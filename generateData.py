@@ -33,7 +33,7 @@ def get_sample(alpha, mnb, mxb, penalties):
     m = 20
     hours = 1800
     reg_percent = 0.4  # Percentage of hours spent teaching
-    res_percent = 0.2  # Percentage of hours spent teaching for other responsibilities
+    res_percent = 0.2  # Percentage of hours spent teaching for staff who have other responsibilities
     no_spec = 15  # Number of specialist staff members
     no_res = 5  # Number of staff with other responsibilities
     coordinator = 30  # Coordinator hours per module
@@ -62,12 +62,13 @@ def get_sample(alpha, mnb, mxb, penalties):
     r = np.zeros((m, n))  # Proportion of module m that staff n taught last year
     pref = np.zeros((m, n))  # Preference of staff n to module m
     """ Staff logic for t, r and pref:
-    Most staff are regular. Regular staff pick 1/4 modules they have taught previously, teaching 50% of 1/2
-    modules taught last year, and rating them at 0. 
+    Most staff are regular. Regular staff pick 1/4 modules out of the total that to be taught previously, 
+    teaching 50% of 1/2 of those modules last year, and rating them at 0. 
     They have a 33% chance to rate other modules either a 0, 1 or 2.
     
-    Some staff (no_spec) are specialists. Specialist staff pick 1/5 modules they have taught previously, teaching 100%
-    of 1/2 modules taught last year, and rating them at 0. They have a 50% chance to rate other modules either a 1 or 2.
+    Some staff (no_spec) are specialists. Specialist staff pick 1/5 modules out of the total to be taught previously, 
+    teaching 100% of 1/2 of those modules last year, and rating them at 0. 
+    They have a 50% chance to rate other modules either a 1 or 2.
     """
     for i in range(n):
         if np.any(spec_ind == i):  # Staff is specialist
