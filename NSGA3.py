@@ -36,7 +36,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     Zsa = Projection of P
     Pa = Non - dominated subset of P
     Ya = Non - dominated subset of Y
-    stats = Structure of various recorded statistics
+    results = Structure of various recorded statistics
     """
 
     structure_flag = 0
@@ -101,8 +101,8 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
                             compare = P[j]
                             if solution.compare_to(compare):
                                 repeats.append(j)
-            stats.p_repeats[g] = len(repeats) / len(P)
-            stats.y_repeats[g] = len(np.unique(Y, axis=0)) / len(Y)"""
+            results.p_repeats[g] = len(repeats) / len(P)
+            results.y_repeats[g] = len(np.unique(Y, axis=0)) / len(Y)"""
 
             if g % 10 == 0:
                 print(f"Prop non-dominated {stats.prop_non_dom[g]}, "
@@ -229,6 +229,7 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
     :return Pa: Updated Pa values
     :return Ya: Updated Ya values
     """
+    ry_repeats = None
     S = []
     Q = crossover_function(P, data)
     Q = mutation_function(Q, data)
