@@ -17,8 +17,6 @@ class Data:
         self.pref = pref  # Enum of module preferences [n, m]
         self.t_matrix = term   # Enum of which term each module is taught in: 1/2 [m]
         self.alpha = alpha  # How much less prep time a module takes if it has been taught before (int)
-        self.mnb = mnb  # (test: mnb = n)???
-        self.mxb = mxb  # (test: mxb = m)???
         self.penalties = pen  # Penalty coefficients for each constraint
         # Optional variables:
         self.constraints_on = constraints_on  # Whether to use constraints (bool)
@@ -28,10 +26,16 @@ class Data:
         self.preallocated_X = pre_x  # Teaching preallocations [n, m]
 
 
-def get_sample(alpha, mnb, mxb, penalties):
-    n = 36
-    m = 20
-    hours = 1800
+def get_sample(alpha, penalties):
+    """
+    Generates sample data randomly
+    :param alpha: Hyperparameter showing how important previously teaching a module is
+    :param penalties: Penalty coefficients of the problem's constraints
+    :return: Data class instance
+    """
+    n = 36  # Number of lecturers
+    m = 20  # Number of modules
+    hours = 1800  # Average contractual hours of one staff member
     reg_percent = 0.4  # Percentage of hours spent teaching
     res_percent = 0.2  # Percentage of hours spent teaching for staff who have other responsibilities
     no_spec = 15  # Number of specialist staff members
@@ -115,5 +119,5 @@ def get_sample(alpha, mnb, mxb, penalties):
     t_one = np.ones(10)
     t_two = np.ones(10) + 1
     terms = np.append(t_one, t_two)  # Which term modules are in
-    self_gen = Data(n, m, workload, contract_hours, c, d, p, t, r, pref, terms, alpha, penalties, mnb, mxb)
+    self_gen = Data(n, m, workload, contract_hours, c, d, p, t, r, pref, terms, alpha, penalties)
     return self_gen

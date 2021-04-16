@@ -69,7 +69,7 @@ def structured_points_analysis():
             test_hv = np.zeros((5, 1))
             for k in range(5):  # Repeated experiments to avoid randomness
                 # Generate different population each time
-                self_gen = get_sample(alpha=0.1, mnb=36, mxb=20, penalties=penalties)
+                self_gen = get_sample(alpha=0.1, penalties=penalties)
                 dimensions = 7  # M
                 boundary = i+1  # p
                 inside = j+1
@@ -88,7 +88,7 @@ def structured_points_analysis():
 
 def adjustable_structure_points(boundary, inside):
     penalties = np.array([0.1, 0.1, 0.1])
-    self_gen = get_sample(alpha=0.1, mnb=36, mxb=20, penalties=penalties)
+    self_gen = get_sample(alpha=0.1, penalties=penalties)
 
     dimensions = 7  # M
     [population, obj_values, struc_points, pop_archive, obj_archive, stats] = \
@@ -98,13 +98,45 @@ def adjustable_structure_points(boundary, inside):
     return stats
 
 
-def random_pop_compare():
-
-
-
-def basic_nsga3():
+def random_pop_compare(gens, pop_size):
+    """
+    Creates a random population and compares its hypervolume to the hypervolume of a population
+    optimised by NSGA3
+    :param pop_size: Size of the population
+    :return:
+    """
+    # Generate data
     penalties = np.array([0.1, 0.1, 0.1])
-    self_gen = get_sample(alpha=0.1, mnb=36, mxb=20, penalties=penalties)
+    self_gen = get_sample(alpha=0.1, penalties=penalties)
+    # Generate random population and evaluate their objective values
+    rand_P = []
+    rand_Y = []
+    for i in range(pop_size):
+        new_pop = sup.create_random(self_gen)
+        rand_P.append(new_pop)
+        rand_Y.append(sup.cost(new_pop, self_gen))
+    rand_P = np.array(rand_P)
+    rand_Y = np.array(rand_Y)
+    # Generate hypervolume of random population
+    rand_hv = NSGA3.est_hv(rand_Y)
+    # Perform NSGA3 on another population
+    [population, obj_values, struc_points, pop_archive, obj_archive, stats] = \
+        basic_nsga3(gens, pop_size, data=self_gen)
+    plt.figure(1)
+    plt.title("Hypervolume over time of random and optimised population")
+    plt.xlabel("Generations")
+    plt.ylabel("Hypervolume")
+    plt.plot(range(gens), np.tile(rand_hv, gens), label="Random population")
+    plt.plot(range(gens), stats.hv, label="Optimised population")
+    plt.yticks(np.arange(stats.hv[0], stats.hv[-1]+0.1, 0.1))
+    plt.legend()
+    plt.show()
+
+
+def basic_nsga3(generations, pop_size, data=None):
+    penalties = np.array([0.1, 0.1, 0.1])
+    if not data:
+        data = get_sample(alpha=0.1, penalties=penalties)
 
     # Previously used: boundary = 10, inside = 4)
     dimensions = 7  # M
@@ -112,13 +144,11 @@ def basic_nsga3():
     inside = 2
     # Gives 84 reference points on the boundary and 36 on the inside, total of 120
     [population, obj_values, struc_points, pop_archive, obj_archive, stats] = \
-        NSGA3.NSGA3(200, sup.cost, sup.crossover, sup.swap_mutation, sup.create_random,
+        NSGA3.NSGA3(generations, sup.cost, sup.crossover, sup.swap_mutation, sup.create_random,
                     initial_population=[], boundary_p=boundary, inside_p=inside, M=dimensions,
-                    data=self_gen, pop_size=200, passive_archive=1)
+                    data=data, pop_size=pop_size, passive_archive=1)
+    return population, obj_values, struc_points, pop_archive, obj_archive, stats
 
 
 if __name__ == '__main__':
-    struc_hv = np.zeros((5, 1))
-    for i in range(5):
-        struc_hv[i] = adjustable_structure_points(4, 5).hv[-1]
-    print(np.mean(struc_hv))
+    basic_nsga3(200, 200)
