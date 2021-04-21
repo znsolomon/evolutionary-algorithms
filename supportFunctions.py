@@ -116,7 +116,7 @@ def cost(s, data):
     if data.constraints_on:
         for i in range(data.m):  # For each module
             if sum(s.C[i, :]) != 1:  # Total co-ordination value of each module must equal 1
-                y = y + (data.penalties[0] / abs(sum(s.C[i, :]) - 1))  # Penalise
+                y = y + (data.penalties[0] * abs(sum(s.C[i, :]) - 1))  # Penalise
             if sum(s.X[i, :]) != 1:  # Whole module must be taught
                 y = y + (data.penalties[1] * abs(sum(s.X[i, :]) - 1))  # Penalise
             for j in range(data.n):  # For each staff member
