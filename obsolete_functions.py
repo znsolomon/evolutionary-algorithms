@@ -108,6 +108,30 @@ def update_passive(Pa, Ya, Qy, Q):
     return [Pa, Ya]
 
 
+def teaching_constraints(P, data):
+    for i in range(len(P)):
+        s = P[i]
+        # ensure preallocations
+        if data.preallocated_module_indices:
+            for j in data.preallocated_module_indices:
+                if sum(data.preallocated_C[j, :]) > 0:
+                    if sum(abs(s.C[j, :] - data.preallocated_C[j, :])) != 0:  # some coordinators not matched
+                        s.C[j, :] = data.preallocated_C[j, :]
+
+                I = np.argwhere((s.X[j, :] - data.preallocated_X[j, :]) < 0)  # identify where < min teaching load
+                if I:  # some minimum teaching not matched
+                    s.X[j, I] = data.preallocated_X[j, I]
+                    total_load = sum(s.X[j, :]) + data.external_allocation[j]
+                    while total_load > (data.increment_number[j]):
+                        live = np.argwhere(s.X[j, :] > 0)
+                        k = np.random.permutation(len(live))
+                        if s.X[j, live[k[1]]] > data.preallocated_X[j, live[k[1]]]:
+                            s.X[j, live[k[1]]] = s.X[j, live[k[1]]] - 1
+                        total_load = sum(s.X[j, :]) + data.external_allocation[j]
+        P[i] = s
+    return P
+
+
 def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
            structure_flag, data, Pa, Ya, passive_archive, extreme_switch):
     # Za Aspiration points
