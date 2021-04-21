@@ -213,7 +213,7 @@ def create_random(data):
         C[x, y] = np.random.randint(0, 1)
     # Assign teaching proportions randomly
     for x, y in np.ndindex(X.shape):
-        X[x, y] = np.random.randint(0, 100)
+        X[x, y] = np.random.rand()
 
     x = Solution(X, C)
     return x

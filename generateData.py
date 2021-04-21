@@ -2,7 +2,7 @@ import numpy as np
 
 
 class Data:
-    def __init__(self, n, m, w, h, c, d, p, t, r, pref, term, alpha, pen, mnb, mxb,
+    def __init__(self, n, m, w, h, c, d, p, t, r, pref, term, alpha, pen,
                  constraints_on=True, pre_mod_in=None, pre_c=None, pre_x=None, increment_number=0.05):
         # Required variables:
         self.n = n  # NO. staff (int)
@@ -84,7 +84,7 @@ def get_sample(alpha, penalties):
                     t[j, i] = True
                     pref[j, i] = 0
                     if np.any(last_year == j):
-                        r[j, i] = 100
+                        r[j, i] = 1
                     else:
                         r[j, i] = 0
                 else:
@@ -103,7 +103,7 @@ def get_sample(alpha, penalties):
                     t[j, i] = True
                     pref[j, i] = 0
                     if np.any(last_year == j):
-                        r[j, i] = 50
+                        r[j, i] = 0.5
                     else:
                         r[j, i] = 0
                 else:
