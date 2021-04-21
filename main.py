@@ -76,7 +76,7 @@ def structured_points_analysis():
 
                 try:
                     [population, obj_values, struc_points, pop_archive, obj_archive, stats] = \
-                        NSGA3.NSGA3(200, sup.cost, sup.crossover, sup.swap_mutation, sup.create_random,
+                        NSGA3.NSGA3(200, sup.cost, sup.crossover, sup.mutation_fieldsend, sup.create_random,
                         initial_population=[], boundary_p=boundary, inside_p=inside, M=dimensions,
                         data=self_gen, pop_size=200, passive_archive=1)
                     test_hv[k] = stats.hv[-1]  # Get last value of hypervolume (most optimised)
@@ -92,7 +92,7 @@ def adjustable_structure_points(boundary, inside):
 
     dimensions = 7  # M
     [population, obj_values, struc_points, pop_archive, obj_archive, stats] = \
-        NSGA3.NSGA3(200, sup.cost, sup.crossover, sup.swap_mutation, sup.create_random,
+        NSGA3.NSGA3(200, sup.cost, sup.crossover, sup.mutation_fieldsend, sup.create_random,
                     initial_population=[], boundary_p=boundary, inside_p=inside, M=dimensions,
                     data=self_gen, pop_size=200, passive_archive=1)
     return stats
@@ -144,11 +144,12 @@ def basic_nsga3(generations, pop_size, data=None):
     inside = 2
     # Gives 84 reference points on the boundary and 36 on the inside, total of 120
     [population, obj_values, struc_points, pop_archive, obj_archive, stats] = \
-        NSGA3.NSGA3(generations, sup.cost, sup.crossover, sup.swap_mutation, sup.create_random,
+        NSGA3.NSGA3(generations, sup.cost, sup.crossover, sup.mutation_gaussian, sup.create_random,
                     initial_population=[], boundary_p=boundary, inside_p=inside, M=dimensions,
                     data=data, pop_size=pop_size, passive_archive=1)
     return population, obj_values, struc_points, pop_archive, obj_archive, stats
 
 
 if __name__ == '__main__':
-    basic_nsga3(200, 200)
+    population, obj_values, struc_points, pop_archive, obj_archive, stats = basic_nsga3(200, 200)
+    plot_standard_results(stats)

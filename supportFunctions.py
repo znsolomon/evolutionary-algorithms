@@ -158,45 +158,55 @@ def crossover(P, data):
     return P
 
 
-def swap_mutation(P, data):
+def mutation_gaussian(P, data):
     """
-    Performs swap mutation on population
+    Performs mutation on population using a gaussian distribution
     :param P: Population of solutions
     :param data: Data object containing information about the problem
     :return: P after mutation has been performed
     """
-    # Performs swap mutation on population P
-    max_to_vary = 1  # NO. elements to switch on
+    for s in range(len(P)):  # For each solution
+        solution = P[s]
+        for i in range(len(solution.X)):  # For each module in turn
+            module = solution.X[i]
+            for j in range(len(module)):  # For each staff member in turn
+                staff = module[j]
+                if np.random.rand() < 1/solution.X.size:  # Probablity of a mutation is 1/number of values in X
+                    staff = np.random.normal(loc=staff, scale=0.1)  # Modify based on gaussian distribution
+                    P[s].X[i, j] = staff
+    return P
+
+
+def mutation_fieldsend(P, data):
+    """
+    Fieldsend's method to perform mutation on population
+    :param P: Population of solutions
+    :param data: Data object containing information about the problem
+    :return: P after mutation has been performed
+    """
     for i in range(len(P)):
-        for k in range(max_to_vary):
-            child = P[i]
-            rm = np.random.randint(data.m)  # get a module at random
-            I = np.argwhere(child.X[rm, :] > 0)  # Get indices where teaching is happening
-            if len(I) != 0:  # some delivery internally
-                r = np.random.permutation(len(I))
-                I = I[r]  # Randomly permute
-                if np.random.rand() < 0.5:
-                    child.X[rm, I[0]] = child.X[rm, I[0]] - 1
-                    rn = np.random.permutation(data.n)  # Allocate to a random other
-                    child.X[rm, rn[0]] = child.X[rm, rn[0]] + 1
-                else:  # randomly remove teaching of module from one member of staff and give to another
-                    rn = np.random.permutation(data.n)  # allocate to a random other
-                    if rn[0] == I[0]:
-                        rn = rn[1]
-                    else:
-                        rn = rn[0]
-                    child.X[rm, rn] = child.X[rm, rn] + child.X[rm, I[0]]
-                    child.X[rm, I] = 0
-                # Always assign coordination to staff teaching most of module
-                child.C[rm, :] = 0
-                index = np.argmax(child.X[rm, :])
-                child.C[rm, index] = 1
-            else:  # where no teaching due to external delivery swap coordinator
-                child.C[rm, :] = 0
-                index = np.random.permutation(data.n)
-                child.C[rm, index[0]] = 1
-            P[i] = child
-    P = teaching_constraints(P, data)
+        child = P[i]
+        rm = np.random.randint(data.m)  # get a module at random
+        I = np.argwhere(child.X[rm, :] > 0)  # Get indices where teaching is happening
+        r = np.random.permutation(len(I))
+        I = I[r]  # Randomly permute
+        if np.random.rand() < 0.5:
+            child.X[rm, I[0]] = child.X[rm, I[0]] - 1
+            rn = np.random.permutation(data.n)  # Allocate to a random other
+            child.X[rm, rn[0]] = child.X[rm, rn[0]] + 1
+        else:  # randomly remove teaching of module from one member of staff and give to another
+            rn = np.random.permutation(data.n)  # allocate to a random other
+            if rn[0] == I[0]:
+                rn = rn[1]
+            else:
+                rn = rn[0]
+            child.X[rm, rn] = child.X[rm, rn] + child.X[rm, I[0]]
+            child.X[rm, I] = 0
+        # Always assign coordination to staff teaching most of module
+        child.C[rm, :] = 0
+        index = np.argmax(child.X[rm, :])
+        child.C[rm, index] = 1
+        P[i] = child
     return P
 
 
@@ -217,27 +227,3 @@ def create_random(data):
 
     x = Solution(X, C)
     return x
-
-
-def teaching_constraints(P, data):
-    for i in range(len(P)):
-        s = P[i]
-        # ensure preallocations
-        if data.preallocated_module_indices:
-            for j in data.preallocated_module_indices:
-                if sum(data.preallocated_C[j, :]) > 0:
-                    if sum(abs(s.C[j, :] - data.preallocated_C[j, :])) != 0:  # some coordinators not matched
-                        s.C[j, :] = data.preallocated_C[j, :]
-
-                I = np.argwhere((s.X[j, :] - data.preallocated_X[j, :]) < 0)  # identify where < min teaching load
-                if I:  # some minimum teaching not matched
-                    s.X[j, I] = data.preallocated_X[j, I]
-                    total_load = sum(s.X[j, :]) + data.external_allocation[j]
-                    while total_load > (data.increment_number[j]):
-                        live = np.argwhere(s.X[j, :] > 0)
-                        k = np.random.permutation(len(live))
-                        if s.X[j, live[k[1]]] > data.preallocated_X[j, live[k[1]]]:
-                            s.X[j, live[k[1]]] = s.X[j, live[k[1]]] - 1
-                        total_load = sum(s.X[j, :]) + data.external_allocation[j]
-        P[i] = s
-    return P
