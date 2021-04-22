@@ -67,7 +67,7 @@ def get_sample(alpha, penalties):
     pref = np.zeros((m, n))  # Preference of staff n to module m
     """ Staff logic for t, r and pref:
     Most staff are regular. Regular staff pick 1/4 modules out of the total that to be taught previously, 
-    teaching 50% of 1/2 of those modules last year, and rating them at 0. 
+    teaching 50% of those modules last year, and rating them at 0. 
     They have a 33% chance to rate other modules either a 0, 1 or 2.
     
     Some staff (no_spec) are specialists. Specialist staff pick 1/5 modules out of the total to be taught previously, 
@@ -96,16 +96,11 @@ def get_sample(alpha, penalties):
                         pref[j, i] = 2
         else:  # Staff is regular
             modules_taught = np.random.randint(m, size=int(np.round(m / 4)))
-            last_year_ind = np.random.randint(5, size=int(np.round((m / 4) / 2)))
-            last_year = modules_taught[last_year_ind]
             for j in range(m):
                 if np.any(modules_taught == j):
                     t[j, i] = True
                     pref[j, i] = 0
-                    if np.any(last_year == j):
-                        r[j, i] = 0.5
-                    else:
-                        r[j, i] = 0
+                    r[j, i] = 0.5
                 else:
                     t[j, i] = False
                     r[j, i] = 0
