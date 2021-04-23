@@ -264,10 +264,10 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
     P = []
     Yp = []
     first = True
-    if len(S) != N:  # Concatenate last shell
-        indices_used = []
+    if len(S) != N:
+        # The next shell is too big to fit in the population for next generation, so it must be ordered
+        # First, add the confirmed population for next generation to P:
         for j in range(i - 1):
-            indices_used = np.append(indices_used, F[j])
             P = np.append(P, R[F[j]])
             for item in F[j]:
                 if first:
@@ -291,8 +291,8 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
         for i in range(len(Zr_niche_count)):
             Zr_niche_count[i] = np.count_nonzero(ioc_targets == i)
 
-        [P, Y, indices_used] = niching(K, Zr_niche_count, index_of_closest, distance_to_closest,
-                                       Fl, P, R, Yp, Ry, indices_used)
+        [P, Y] = niching(K, Zr_niche_count, index_of_closest, distance_to_closest,
+                                       Fl, P, R, Yp, Ry)
 
     else:
         P = R[S.astype(int)]
@@ -400,7 +400,7 @@ def associate(S, Yn, Zr):
     return [index_of_closest, distance_to_closest]
 
 
-def niching(K, Zr_niche_count, index_of_closest, distance_to_closest, Fl, P, R, Yp, Y, iu):
+def niching(K, Zr_niche_count, index_of_closest, distance_to_closest, Fl, P, R, Yp, Y):
     """
     1. Identify the set of reference points with minimum niche count (choose one at random if multiples)
     2. If the front has no members associated with reference point, exclude it from further calculation
@@ -414,13 +414,10 @@ def niching(K, Zr_niche_count, index_of_closest, distance_to_closest, Fl, P, R, 
     :param Fl: Shell of pop members needed to look through (index values)
     :param P: Population for next generation
     :param R: Merged full population in current generation
-    :param Yp:
-    :param Y:
-    :param iu:
-    :return: Modified, P, Yp and iu
+    :param Yp: Objective values of the population for next generation (P)
+    :param Y: Objective values of the full population (R)
+    :return: Updated P, Yp by adding vales from the next shell
     """
-    # returns indices of final selected population
-
     k = 1
     while k <= K:
         # get indices of Zr elements which have smallest niche count
@@ -449,11 +446,9 @@ def niching(K, Zr_niche_count, index_of_closest, distance_to_closest, Fl, P, R, 
             P = np.append(P, R[Fl[Ij_bar[chosen_index]]])  # add to P
             Yp = np.append(Yp, Y[Fl[Ij_bar[chosen_index]], :], axis=0)
             Zr_niche_count[smallest_niche_ref] += 1
-            iu = np.append(iu, Fl[Ij_bar[chosen_index]])
             Fl[Ij_bar[chosen_index]] = np.empty((1, 1))  # remove from consideration next time
             k = k + 1
         else:
             Zr_niche_count[smallest_niche_ref] = np.inf
             # put niche count to infinity so it will not be considered in the next loop, same as removing from Zr
-
-    return [P, Yp, iu]
+    return [P, Yp]
