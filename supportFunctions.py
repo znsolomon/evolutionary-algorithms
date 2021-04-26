@@ -172,7 +172,7 @@ def mutation_gaussian(P, data):
             for j in range(len(module)):  # For each staff member in turn
                 staff = module[j]
                 if np.random.rand() < 1/solution.X.size:  # Probablity of a mutation is 1/number of values in X
-                    staff = np.random.normal(loc=staff, scale=0.1)  # Modify based on gaussian distribution
+                    staff = np.random.normal(loc=staff, scale=0.001)  # Modify based on gaussian distribution
                     P[s].X[i, j] = staff
     return P
 
