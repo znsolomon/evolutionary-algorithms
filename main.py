@@ -133,6 +133,33 @@ def random_pop_compare(gens, pop_size):
     plt.show()
 
 
+def mutation_test(generations, red_gens, pop_size, data=None):
+    """
+    Test the algorithm on two different mutation operators
+    :param generations: Number of generations
+    :param red_gens: Number of generations for reduced operators that cannot run the full number
+    :param pop_size: Size of population
+    :param data: Data relating to the problem
+    :return: Statistics from the NSGA3 process for two mutation operators
+    """
+    penalties = np.array([0.1, 0.1, 0.1])
+    if not data:
+        data = get_sample(alpha=0.1, penalties=penalties)
+    dimensions = 7
+    boundary = 3
+    inside = 2
+    # Gaussian mutation is only stable in half as many generations as the fieldsend method
+    [population, obj_values, struc_points, pop_archive, obj_archive, gaus_stats] = \
+        NSGA3.NSGA3(red_gens, sup.cost, sup.crossover, sup.mutation_gaussian, sup.create_random,
+                    initial_population=[], boundary_p=boundary, inside_p=inside, M=dimensions,
+                    data=data, pop_size=pop_size, passive_archive=1)
+    [population, obj_values, struc_points, pop_archive, obj_archive, reg_stats] = \
+        NSGA3.NSGA3(generations, sup.cost, sup.crossover, sup.mutation_fieldsend, sup.create_random,
+                    initial_population=[], boundary_p=boundary, inside_p=inside, M=dimensions,
+                    data=data, pop_size=pop_size, passive_archive=1)
+    return reg_stats, gaus_stats
+
+
 def basic_nsga3(generations, pop_size, data=None):
     penalties = np.array([0.1, 0.1, 0.1])
     if not data:
@@ -144,12 +171,19 @@ def basic_nsga3(generations, pop_size, data=None):
     inside = 2
     # Gives 84 reference points on the boundary and 36 on the inside, total of 120
     [population, obj_values, struc_points, pop_archive, obj_archive, stats] = \
-        NSGA3.NSGA3(generations, sup.cost, sup.crossover, sup.mutation_gaussian, sup.create_random,
+        NSGA3.NSGA3(generations, sup.cost, sup.crossover, sup.mutation_fieldsend, sup.create_random,
                     initial_population=[], boundary_p=boundary, inside_p=inside, M=dimensions,
                     data=data, pop_size=pop_size, passive_archive=1)
     return population, obj_values, struc_points, pop_archive, obj_archive, stats
 
 
 if __name__ == '__main__':
-    population, obj_values, struc_points, pop_archive, obj_archive, stats = basic_nsga3(200, 200)
-    plot_standard_results(stats)
+    reg_stats, gaus_stats = mutation_test(200, 60, 200)
+    plt.figure(1)
+    plt.title("Population duplicate stability for two mutation operators")
+    plt.xlabel("Generation")
+    plt.ylabel("Proportion scores repeated")
+    plt.plot(range(200), reg_stats.ry_repeats, label="Uniform mutation")
+    plt.plot(range(60), gaus_stats.ry_repeats, label="Gaussian mutation")
+    plt.legend()
+    plt.show()
