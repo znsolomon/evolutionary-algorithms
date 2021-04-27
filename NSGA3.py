@@ -281,6 +281,7 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
         [Yn, Zr] = normalise(S, Ry, Zsa, structure_flag)
 
         [index_of_closest, distance_to_closest] = associate(S, Yn, Zr)
+
         # Get 'niche count': count of how many individuals are associated with each reference point
         s_targets = S[0:len(P)]
         ioc_targets = []
@@ -370,9 +371,10 @@ def perpendicular_distance(direction, point):
     :param point:
     :return:
     """
-    k = np.dot(direction, point) / np.sum(np.power(direction, 2))
-    d = np.sum(np.power(np.subtract(np.multiply(direction, [k] * len(direction)), point), 2))
-    return np.sqrt(d)
+    norm_sq = np.linalg.norm(point) ** 2
+    sw = np.multiply(direction, point)
+    wtsw = np.multiply(np.transpose(point), sw)
+    return np.linalg.norm((direction - wtsw) / norm_sq)
 
 
 def associate(S, Yn, Zr):
@@ -380,8 +382,8 @@ def associate(S, Yn, Zr):
     1. Compute reference lines of Zr by joining each reference point with the origin
     2. Get distance from each population member to each reference line
     3. Associate each pop member with the closest reference line
-    :param S: indices of members
-    :param Yn: normalised objective vectors
+    :param S: indices of population members being considered
+    :param Yn: normalised objective vectors of entire population
     :param Zr: reference points
     :return: indexes and distances of population members associated with reference points
     """

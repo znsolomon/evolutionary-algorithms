@@ -178,12 +178,5 @@ def basic_nsga3(generations, pop_size, data=None):
 
 
 if __name__ == '__main__':
-    reg_stats, gaus_stats = mutation_test(200, 60, 200)
-    plt.figure(1)
-    plt.title("Population duplicate stability for two mutation operators")
-    plt.xlabel("Generation")
-    plt.ylabel("Proportion scores repeated")
-    plt.plot(range(200), reg_stats.ry_repeats, label="Uniform mutation")
-    plt.plot(range(60), gaus_stats.ry_repeats, label="Gaussian mutation")
-    plt.legend()
-    plt.show()
+    population, obj_values, struc_points, pop_archive, obj_archive, stats = basic_nsga3(200, 200)
+    plot_standard_results(stats)
