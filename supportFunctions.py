@@ -179,34 +179,42 @@ def mutation_gaussian(P, data):
 
 def mutation_fieldsend(P, data):
     """
-    Fieldsend's method to perform mutation on population
+    Performs swap mutation on population
     :param P: Population of solutions
     :param data: Data object containing information about the problem
     :return: P after mutation has been performed
     """
+    # Performs swap mutation on population P
+    max_to_vary = 1  # NO. elements to switch on
     for i in range(len(P)):
-        child = P[i]
-        rm = np.random.randint(data.m)  # get a module at random
-        I = np.argwhere(child.X[rm, :] > 0)  # Get indices where teaching is happening
-        r = np.random.permutation(len(I))
-        I = I[r]  # Randomly permute
-        if np.random.rand() < 0.5:
-            child.X[rm, I[0]] = child.X[rm, I[0]] - 1
-            rn = np.random.permutation(data.n)  # Allocate to a random other
-            child.X[rm, rn[0]] = child.X[rm, rn[0]] + 1
-        else:  # randomly remove teaching of module from one member of staff and give to another
-            rn = np.random.permutation(data.n)  # allocate to a random other
-            if rn[0] == I[0]:
-                rn = rn[1]
-            else:
-                rn = rn[0]
-            child.X[rm, rn] = child.X[rm, rn] + child.X[rm, I[0]]
-            child.X[rm, I] = 0
-        # Always assign coordination to staff teaching most of module
-        child.C[rm, :] = 0
-        index = np.argmax(child.X[rm, :])
-        child.C[rm, index] = 1
-        P[i] = child
+        for k in range(max_to_vary):
+            child = P[i]
+            rm = np.random.randint(data.m)  # get a module at random
+            I = np.argwhere(child.X[rm, :] > 0)  # Get indices where teaching is happening
+            if len(I) != 0:  # some delivery internally
+                r = np.random.permutation(len(I))
+                I = I[r]  # Randomly permute
+                if np.random.rand() < 0.5:
+                    child.X[rm, I[0]] = child.X[rm, I[0]] - 1
+                    rn = np.random.permutation(data.n)  # Allocate to a random other
+                    child.X[rm, rn[0]] = child.X[rm, rn[0]] + 1
+                else:  # randomly remove teaching of module from one member of staff and give to another
+                    rn = np.random.permutation(data.n)  # allocate to a random other
+                    if rn[0] == I[0]:
+                        rn = rn[1]
+                    else:
+                        rn = rn[0]
+                    child.X[rm, rn] = child.X[rm, rn] + child.X[rm, I[0]]
+                    child.X[rm, I] = 0
+                # Always assign coordination to staff teaching most of module
+                child.C[rm, :] = 0
+                index = np.argmax(child.X[rm, :])
+                child.C[rm, index] = 1
+            else:  # where no teaching due to external delivery swap coordinator
+                child.C[rm, :] = 0
+                index = np.random.permutation(data.n)
+                child.C[rm, index[0]] = 1
+            P[i] = child
     return P
 
 
