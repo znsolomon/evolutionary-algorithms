@@ -1,4 +1,6 @@
 import numpy as np
+
+import NSGA2
 import NSGA3
 import supportFunctions as sup
 from generateData import get_sample
@@ -160,6 +162,27 @@ def mutation_test(generations, red_gens, pop_size, data=None):
     return reg_stats, gaus_stats
 
 
+def nsga2_3_test(generations, pop_size):
+    """
+    Compares hypervolume of NSGA2 and NSGA3
+    :param generations: Number of generations
+    :param pop_size: Population size
+    :return:
+    """
+    penalties = np.array([0.1, 0.1, 0.1])
+    data = get_sample(alpha=0.1, penalties=penalties)
+    nsga2 = basic_nsga2(generations, pop_size, data=data)
+    nsga3 = basic_nsga3(generations, pop_size, data=data)
+    plt.figure(1)
+    plt.title("Hypervolume over generations for each algorithm")
+    plt.xlabel("Generation")
+    plt.ylabel("Hypervolume")
+    plt.plot(range(200), nsga2.hv, label="NSGA-II")
+    plt.plot(range(200), nsga3.hv, label="NSGA-III")
+    plt.legend()
+    plt.show()
+
+
 def basic_nsga3(generations, pop_size, data=None):
     penalties = np.array([0.1, 0.1, 0.1])
     if not data:
@@ -174,9 +197,20 @@ def basic_nsga3(generations, pop_size, data=None):
         NSGA3.NSGA3(generations, sup.cost, sup.crossover, sup.mutation_fieldsend, sup.create_random,
                     initial_population=[], boundary_p=boundary, inside_p=inside, M=dimensions,
                     data=data, pop_size=pop_size, passive_archive=1)
-    return population, obj_values, struc_points, pop_archive, obj_archive, stats
+    return stats
+
+
+def basic_nsga2(generations, pop_size, data=None):
+    penalties = np.array([0.1, 0.1, 0.1])
+    if not data:
+        data = get_sample(alpha=0.1, penalties=penalties)
+
+    dimensions = 7  # M
+    [population, obj_values, pop_archive, obj_archive, stats] = \
+        NSGA2.NSGA2(generations, sup.cost, sup.crossover, sup.mutation_fieldsend, sup.create_random,
+                    initial_population=[], M=dimensions, data=data, pop_size=pop_size, passive_archive=1)
+    return stats
 
 
 if __name__ == '__main__':
-    population, obj_values, struc_points, pop_archive, obj_archive, stats = basic_nsga3(200, 200)
-    plot_standard_results(stats)
+    nsga2_3_test(200, 200)
