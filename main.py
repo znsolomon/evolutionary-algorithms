@@ -1,5 +1,6 @@
 import numpy as np
 
+import MOEAD
 import NSGA2
 import NSGA3
 import supportFunctions as sup
@@ -162,23 +163,51 @@ def mutation_test(generations, red_gens, pop_size, data=None):
     return reg_stats, gaus_stats
 
 
-def nsga2_3_test(generations, pop_size):
+def ea_test(generations, pop_size):
     """
-    Compares hypervolume of NSGA2 and NSGA3
+    Compares hypervolume of NSGA2, MOEA/D, and NSGA3, with random search as a baseline
     :param generations: Number of generations
     :param pop_size: Population size
     :return:
     """
     penalties = np.array([0.1, 0.1, 0.1])
     data = get_sample(alpha=0.1, penalties=penalties)
+    # Generate random population and evaluate their objective values
+    rand_hv = np.zeros(generations)
+    print("Random search")
+    for i in range(generations):
+        print(i)
+        rand_P = []
+        rand_Y = []
+        for j in range(pop_size):
+            new_pop = sup.create_random(data)
+            rand_P.append(new_pop)
+            rand_Y.append(sup.cost(new_pop, data))
+        rand_P = np.array(rand_P)
+        rand_Y = np.array(rand_Y)
+        # Get hypervolume for that generation
+        rand_hv[i] = NSGA3.est_hv(rand_Y)
+
     nsga2 = basic_nsga2(generations, pop_size, data=data)
     nsga3 = basic_nsga3(generations, pop_size, data=data)
+    moead = basic_moead(generations, pop_size, data=data)
     plt.figure(1)
     plt.title("Hypervolume over generations for each algorithm")
     plt.xlabel("Generation")
-    plt.ylabel("Hypervolume")
-    plt.plot(range(200), nsga2.hv, label="NSGA-II")
-    plt.plot(range(200), nsga3.hv, label="NSGA-III")
+    plt.ylabel("Average Hypervolume")
+    plt.plot(range(generations), rand_hv, label="Random search")
+    plt.plot(range(generations), nsga2.hv, label="NSGA-II")
+    plt.plot(range(generations), moead.hv, label="MOEA/D")
+    plt.plot(range(generations), nsga3.hv, label="NSGA-III")
+    plt.legend()
+    plt.show()
+    plt.figure(2)
+    plt.title("Proportion of non-dominated solutions over generations for each algorithm")
+    plt.xlabel("Generation")
+    plt.ylabel("Proportion non-dominated")
+    plt.plot(range(generations), nsga2.prop_non_dom, label="NSGA-II")
+    plt.plot(range(generations), moead.prop_non_dom, label="MOEA/D")
+    plt.plot(range(generations), nsga3.prop_non_dom, label="NSGA-III")
     plt.legend()
     plt.show()
 
@@ -212,5 +241,20 @@ def basic_nsga2(generations, pop_size, data=None):
     return stats
 
 
+def basic_moead(generations, pop_size, data=None):
+    penalties = np.array([0.1, 0.1, 0.1])
+    if not data:
+        data = get_sample(alpha=0.1, penalties=penalties)
+
+    dimensions = 7  # M
+    boundary = 3  # p
+    inside = 2
+    [population, obj_values, struc_points, pop_archive, obj_archive, stats] = \
+        MOEAD.MOEAD(generations, sup.cost, sup.crossover, sup.mutation_fieldsend, sup.create_random,
+                    initial_population=[], boundary_p=boundary, inside_p=inside, M=dimensions,
+                    data=data, pop_size=pop_size, passive_archive=1)
+    return stats
+
+
 if __name__ == '__main__':
-    nsga2_3_test(200, 200)
+    ea_test(400, 200)
