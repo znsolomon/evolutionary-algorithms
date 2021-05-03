@@ -26,14 +26,15 @@ class Data:
         self.preallocated_X = pre_x  # Teaching preallocations [n, m]
 
 
-def get_sample(alpha, penalties):
+def get_sample(alpha, penalties, lecturers=36):
     """
     Generates sample data randomly
     :param alpha: Hyperparameter showing how important previously teaching a module is
     :param penalties: Penalty coefficients of the problem's constraints
+    :param lecturers: Default value for n
     :return: Data class instance
     """
-    n = 36  # Number of lecturers
+    n = lecturers  # Number of lecturers
     m = 20  # Number of modules
     hours = 1800  # Average contractual hours of one staff member
     reg_percent = 0.4  # Percentage of hours spent teaching
@@ -45,8 +46,8 @@ def get_sample(alpha, penalties):
     prep_low = 50  # Low bound of prep time per module
     prep_high = 151  # High bound of prep time per module
     ind = np.random.choice(range(n), (no_res+no_spec), replace=False)  # Indices of specialist/responsible lectures
-    spec_ind = ind[:4]
-    res_ind = ind[5:]
+    spec_ind = ind[:no_spec]
+    res_ind = ind[no_spec:]
     workload = np.zeros(n)  # Non-teaching workload of each staff
     contract_hours = np.full(n, hours)  # Contractual hours of each staff
     for w in range(n):
