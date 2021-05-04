@@ -12,9 +12,9 @@ class Data:
         self.c_matrix = c  # Coordinator hours of each module [m]
         self.d_matrix = d  # Contact hours of each module [m]
         self.p_matrix = p  # Prep time of each module [m]
-        self.t = t  # Tij shows if staff i has taught module j [n, m]
-        self.r = r  # Rij is percent of module j staff i has taught [n, m]
-        self.pref = pref  # Enum of module preferences [n, m]
+        self.t = t  # Tij shows if staff i has taught module j [m, n]
+        self.r = r  # Rij is percent of module j staff i has taught [m,n]
+        self.pref = pref  # Enum of module preferences [m, n]
         self.t_matrix = term   # Enum of which term each module is taught in: 1/2 [m]
         self.alpha = alpha  # How much less prep time a module takes if it has been taught before (int)
         self.penalties = pen  # Penalty coefficients for each constraint
