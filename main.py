@@ -10,8 +10,8 @@ from matplotlib import pyplot as plt
 
 class Solution:
     def __init__(self, x, c):
-        self.C = c  # Matrix of coordinator proportions (boolean)[n, m]
-        self.X = x  # Matrix of teaching proportions (float)[n, m]
+        self.C = c  # Matrix of coordinator proportions (boolean)[m, n]
+        self.X = x  # Matrix of teaching proportions (float)[m, n]
 
     def compare_to(self, sol):  # Compares to another Solution object
         if np.array_equal(self.X, sol.X) and np.array_equal(self.C, sol.C):
@@ -194,7 +194,7 @@ def ea_test(generations, pop_size):
     plt.figure(1)
     plt.title("Hypervolume over generations for each algorithm")
     plt.xlabel("Generation")
-    plt.ylabel("Average Hypervolume")
+    plt.ylabel("Hypervolume")
     plt.plot(range(generations), rand_hv, label="Random search")
     plt.plot(range(generations), nsga2.hv, label="NSGA-II")
     plt.plot(range(generations), moead.hv, label="MOEA/D")
@@ -230,13 +230,62 @@ def teach_size(generations, pop_size, sizes, specialists, seniors):
     plt.figure(1)
     plt.title("Hypervolume over generations for each number of lecturers")
     plt.xlabel("Generation")
-    plt.ylabel("Average Hypervolume")
+    plt.ylabel("Hypervolume")
     for i in range(len(sizes)):
         label = str(sizes[i])
         hv = results[i].hv
         plt.plot(range(generations), hv, label=label)
     plt.legend()
     plt.show()
+
+
+def dynamic_size(generations, pop_size, sizes, boundary=3, inside=2):
+    """
+    Dynamically changes the size of teaching staff during the NSGA-III evolution
+    :param generations: Number of generations to run each size for
+    :param pop_size: Size of population
+    :param sizes: Array containing different sizes of staff to use, in order
+    :param boundary: Number of divisions on the boundary
+    :param inside: Number of divisions on the inside
+    :return:
+    """
+    # Generate initial data
+    data = get_sample(alpha=0.1, penalties=np.array([0.1, 0.1, 0.1]), lecturers=sizes[0])
+    dimensions = 7  # M
+    [population, obj_values, struc_points, pop_archive, obj_archive, stats] = \
+        NSGA3.NSGA3(generations, sup.cost, sup.crossover, sup.mutation_fieldsend, sup.create_random,
+                    initial_population=[], boundary_p=boundary, inside_p=inside, M=dimensions,
+                    data=data, pop_size=pop_size, passive_archive=1)
+    for i in range(1, len(sizes)):
+        old_size = sizes[i-1]
+        new_size = sizes[i]
+        # Check if removing or adding new staff
+        diff = old_size - new_size
+        if diff > 0:  # If removing
+            to_remove = np.random.choice(old_size, diff, replace=False)  # Determine index values of staff to be removed
+            to_remove = np.sort(to_remove)[::-1]
+            print(to_remove)
+            for j in to_remove:  # Remove staff member for each value in Data
+                data.n = data.n - 1
+                data.workload = np.delete(data.workload, j)
+                data.h = np.delete(data.h, j)
+                data.t = np.delete(data.t, j, axis=1)
+                data.r = np.delete(data.r, j, axis=1)
+                data.pref = np.delete(data.pref, j, axis=1)
+                for k in range(len(population)):  # Remove staff member for each population member
+                    p = population[k]
+                    try:
+                        p.X = np.delete(p.X, j, axis=1)
+                        p.C = np.delete(p.C, j, axis=1)
+                    except IndexError:
+                        print("Error")
+        # Run NSGA-III again for the new population and data parameters
+        [population, obj_values, struc_points, pop_archive, obj_archive, new_stats] = \
+            NSGA3.NSGA3(generations, sup.cost, sup.crossover, sup.mutation_fieldsend, sup.create_random,
+                        initial_population=population, boundary_p=boundary, inside_p=inside, M=dimensions,
+                        data=data, pop_size=pop_size, passive_archive=1)
+        stats = stats.add_stats(new_stats)  # Update stats
+    plot_standard_results(stats)
 
 
 def basic_nsga3(generations, pop_size, data=None):
@@ -284,4 +333,4 @@ def basic_moead(generations, pop_size, data=None):
 
 
 if __name__ == '__main__':
-    teach_size(200, 200, range(36, 20, -2), [15, 14, 14, 13, 12, 11, 10, 9, 8], [5, 5, 4, 4, 4, 3, 3, 3, 3])
+    dynamic_size(200, 200, [36, 35])

@@ -11,6 +11,17 @@ class Statistics:
         self.hv = None  # Hypervolume indicator each generation
         self.ry_repeats = None  # Proportion of Ry population that aren't unique
 
+    def add_stats(self, other):
+        """
+        Combines class with another Statistics class
+        :param other: Other statistics class to combine
+        :return:
+        """
+        self.prop_non_dom = np.concatenate(self.prop_non_dom, other.prop_non_dom)
+        self.mn = np.concatenate(self.mn, other.mn)
+        self.hv = np.concatenate(self.hv, other.hv)
+        self.ry_repeats = np.concatenate(self.ry_repeats, other.prop_non_dom)
+
 
 def NSGA3(generations, cost_function, crossover_function, mutation_function,
           random_solution_function, initial_population, boundary_p, inside_p, M,
@@ -43,7 +54,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
     P = []
     stats = Statistics()
     start_point = 0
-    if initial_population:
+    if len(initial_population) != 0:
         P = initial_population
         start_point = len(P) + 1
 
@@ -55,7 +66,7 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
 
     print(f"Population size is: {pop_size}\n")
 
-    # Create random starting population using the random solution function
+    # Fill out starting population using the random solution function
     for i in range(start_point, pop_size):
         P.append(random_solution_function(data))
     P = np.array(P)
