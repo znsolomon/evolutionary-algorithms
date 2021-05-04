@@ -212,6 +212,33 @@ def ea_test(generations, pop_size):
     plt.show()
 
 
+def teach_size(generations, pop_size, sizes, specialists, seniors):
+    """
+    Tests a variety of sizes for teaching staff
+    :param generations: Number of generations
+    :param pop_size: Size of population
+    :param sizes: Array containing each size of teaching staff
+    :param specialists: Array containing each number of specialists
+    :param seniors: Array containing each number of seniors
+    :return:
+    """
+    penalties = np.array([0.1, 0.1, 0.1])
+    results = []  # Stores stats of each test
+    for i in range(len(sizes)):
+        data = get_sample(alpha=0.1, penalties=penalties, lecturers=sizes[i], spec=specialists[i], res=seniors[i])
+        results.append(basic_nsga3(generations, pop_size, data=data))
+    plt.figure(1)
+    plt.title("Hypervolume over generations for each number of lecturers")
+    plt.xlabel("Generation")
+    plt.ylabel("Average Hypervolume")
+    for i in range(len(sizes)):
+        label = str(sizes[i])
+        hv = results[i].hv
+        plt.plot(range(generations), hv, label=label)
+    plt.legend()
+    plt.show()
+
+
 def basic_nsga3(generations, pop_size, data=None):
     penalties = np.array([0.1, 0.1, 0.1])
     if not data:
@@ -257,4 +284,4 @@ def basic_moead(generations, pop_size, data=None):
 
 
 if __name__ == '__main__':
-    ea_test(400, 200)
+    teach_size(200, 200, range(36, 20, -2), [15, 14, 14, 13, 12, 11, 10, 9, 8], [5, 5, 4, 4, 4, 3, 3, 3, 3])

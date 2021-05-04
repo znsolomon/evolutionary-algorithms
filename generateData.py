@@ -26,12 +26,14 @@ class Data:
         self.preallocated_X = pre_x  # Teaching preallocations [n, m]
 
 
-def get_sample(alpha, penalties, lecturers=36):
+def get_sample(alpha, penalties, lecturers=36, spec=15, res=5):
     """
     Generates sample data randomly
     :param alpha: Hyperparameter showing how important previously teaching a module is
     :param penalties: Penalty coefficients of the problem's constraints
     :param lecturers: Default value for n
+    :param res: Default value for no_spec
+    :param spec: Default value for no_res
     :return: Data class instance
     """
     n = lecturers  # Number of lecturers
@@ -39,8 +41,8 @@ def get_sample(alpha, penalties, lecturers=36):
     hours = 1800  # Average contractual hours of one staff member
     reg_percent = 0.4  # Percentage of hours spent teaching
     res_percent = 0.2  # Percentage of hours spent teaching for staff who have other responsibilities
-    no_spec = 15  # Number of specialist staff members
-    no_res = 5  # Number of staff with other responsibilities
+    no_spec = spec  # Number of specialist staff members
+    no_res = res  # Number of staff with other responsibilities
     coordinator = 30  # Coordinator hours per module
     contact = 60  # Contact hours per module
     prep_low = 50  # Low bound of prep time per module
