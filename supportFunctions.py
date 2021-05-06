@@ -182,40 +182,42 @@ def mutation_fieldsend(P, data):
     Performs swap mutation on population
     :param P: Population of solutions
     :param data: Data object containing information about the problem
-    :return: P after mutation has been performed
+    :return: New population of new solution instances P_prime after mutation has been performed
     """
     # Performs swap mutation on population P
+    P_prime = []
     max_to_vary = 1  # NO. elements to switch on
     for i in range(len(P)):
         for k in range(max_to_vary):
-            child = P[i]
+            child_X = P[i].X
+            child_C = P[i].C
             rm = np.random.randint(data.m)  # get a module at random
-            I = np.argwhere(child.X[rm, :] > 0)  # Get indices where teaching is happening
-            if len(I) != 0:  # some delivery internally
+            I = np.argwhere(child_X[rm, :] > 0)  # Get indices where teaching is happening
+            if len(I) != 0:  # whole module is not pre-allocated
                 r = np.random.permutation(len(I))
                 I = I[r]  # Randomly permute
                 if np.random.rand() < 0.5:
-                    child.X[rm, I[0]] = child.X[rm, I[0]] - 1
+                    child_X[rm, I[0]] = child_X[rm, I[0]] - 1
                     rn = np.random.permutation(data.n)  # Allocate to a random other
-                    child.X[rm, rn[0]] = child.X[rm, rn[0]] + 1
+                    child_X[rm, rn[0]] = child_X[rm, rn[0]] + 1
                 else:  # randomly remove teaching of module from one member of staff and give to another
                     rn = np.random.permutation(data.n)  # allocate to a random other
                     if rn[0] == I[0]:
                         rn = rn[1]
                     else:
                         rn = rn[0]
-                    child.X[rm, rn] = child.X[rm, rn] + child.X[rm, I[0]]
-                    child.X[rm, I] = 0
+                    child_X[rm, rn] = child_X[rm, rn] + child_X[rm, I[0]]
+                    child_X[rm, I] = 0
                 # Always assign coordination to staff teaching most of module
-                child.C[rm, :] = 0
-                index = np.argmax(child.X[rm, :])
-                child.C[rm, index] = 1
+                child_C[rm, :] = 0
+                index = np.argmax(child_X[rm, :])
+                child_C[rm, index] = 1
             else:  # where no teaching due to external delivery swap coordinator
-                child.C[rm, :] = 0
+                child_C[rm, :] = 0
                 index = np.random.permutation(data.n)
-                child.C[rm, index[0]] = 1
-            P[i] = child
-    return P
+                child_C[rm, index[0]] = 1
+            P_prime.append(Solution(child_X, child_C))
+    return np.array(P_prime)
 
 
 def create_random(data):

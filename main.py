@@ -243,13 +243,6 @@ def teach_size(generations, pop_size, sizes, specialists, seniors):
     plt.show()
 
 
-def pop_check(population):
-    sizes = []
-    for p in population:
-        sizes.append(p.X.shape)
-    return sizes
-
-
 def dynamic_size(generations, pop_size, sizes, boundary=3, inside=2):
     """
     Dynamically changes the size of teaching staff during the NSGA-III evolution
@@ -267,7 +260,6 @@ def dynamic_size(generations, pop_size, sizes, boundary=3, inside=2):
         NSGA3.NSGA3(generations, sup.cost, sup.crossover, sup.mutation_fieldsend, sup.create_random,
                     initial_population=[], boundary_p=boundary, inside_p=inside, M=dimensions,
                     data=data, pop_size=pop_size, passive_archive=1)
-    check = pop_check(population)
     for i in range(1, len(sizes)):
         old_size = sizes[i-1]
         new_size = sizes[i]
@@ -284,7 +276,6 @@ def dynamic_size(generations, pop_size, sizes, boundary=3, inside=2):
                 data.t = np.delete(data.t, j, axis=1)
                 data.r = np.delete(data.r, j, axis=1)
                 data.pref = np.delete(data.pref, j, axis=1)
-                pop_change = np.zeros((len(population), len(population)))
                 for k in range(len(population)):  # Remove staff member for each population member
                     try:
                         population[k].remove_teach(j)
@@ -343,34 +334,5 @@ def basic_moead(generations, pop_size, data=None):
     return stats
 
 
-class arr:
-    def __init__(self):
-        self.x = np.zeros((20, 10))
-        self.y = np.zeros((20, 10))
-
-
-def f(inp):
-    sizes = []
-    for p in inp:
-        sizes.append(p.x.shape)
-    return sizes
-
-
-def g(inp):
-    sizes = []
-    for p in inp:
-        sizes.append(p.y.shape)
-    return sizes
-
-
 if __name__ == '__main__':
-    test = []
-    for i in range(200):
-        test.append(arr())
-    test = np.array(test)
-    f(test)
-    for x in range(len(test)):
-        test[x].x = np.delete(test[x].x, 0, axis=1)
-        test[x].y = np.delete(test[x].y, 0, axis=1)
-    print(test)
-    dynamic_size(200, 200, [36, 35])
+    dynamic_size(200, 200, [36, 34])

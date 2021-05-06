@@ -209,7 +209,7 @@ def nondominated_sort(Ry):
     P_ranks = recursive_pareto_shell_with_duplicates(Ry, 0)
     # Sort P_ranks into shell order
     m_value = int(max(P_ranks))  # Highest shell number
-    shell_values = np.unique(P_ranks)
+    shell_values = np.sort(np.unique(P_ranks))
     P_indexed = {}
     for shell in range(m_value):
         shell_indexes = np.argwhere(P_ranks == shell)
@@ -432,6 +432,7 @@ def niching(K, Zr_niche_count, index_of_closest, distance_to_closest, Fl, P, R, 
     :return: Updated P, Yp by adding vales from the next shell
     """
     k = 1
+    chosen_indices = []  # Contains indices of Fl that have already been selected
     while k <= K:
         # get indices of Zr elements which have smallest niche count
         I = np.where(Zr_niche_count == Zr_niche_count.min())
@@ -445,21 +446,22 @@ def niching(K, Zr_niche_count, index_of_closest, distance_to_closest, Fl, P, R, 
         # get members of Fl which have the smallest_niche_ref element of Zr as their guide
         Ij_bar = []
         for i in range(len(Fl)):
+            if Fl[i] in chosen_indices:
+                continue
             ind = Fl[i]
             if index_of_closest[ind] == smallest_niche_ref:
-                Ij_bar.append(i)
+                Ij_bar.append(Fl[i][0])
         if Ij_bar:  # is smallest_niche_ref index in Fl?
             if Zr_niche_count[smallest_niche_ref] == 0:  # no associated P member with ref point
                 # get index of closest matching member of Fl
-                chosen_index = np.argmin(distance_to_closest[Fl[Ij_bar]])
+                chosen_index = Ij_bar[np.argmin(distance_to_closest[Ij_bar])]
             else:
-                indices = np.random.permutation(len(Ij_bar))
-                chosen_index = indices[0]
+                chosen_index = np.random.choice(Ij_bar)
             # Problem: Ij_bar contains values that are bigger than Fl
-            P = np.append(P, R[Fl[Ij_bar[chosen_index]]])  # add to P
-            Yp = np.append(Yp, Y[Fl[Ij_bar[chosen_index]], :], axis=0)
+            P = np.append(P, R[chosen_index])  # add to P
+            Yp = np.append(Yp, Y[[chosen_index], :], axis=0)
             Zr_niche_count[smallest_niche_ref] += 1
-            Fl[Ij_bar[chosen_index]] = np.empty((1, 1))  # remove from consideration next time
+            chosen_indices.append(chosen_index)  # remove from consideration next time
             k = k + 1
         else:
             Zr_niche_count[smallest_niche_ref] = np.inf
