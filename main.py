@@ -286,7 +286,7 @@ def dynamic_size(generations, pop_size, sizes, boundary=3, inside=2):
             NSGA3.NSGA3(generations, sup.cost, sup.crossover, sup.mutation_fieldsend, sup.create_random,
                         initial_population=population, boundary_p=boundary, inside_p=inside, M=dimensions,
                         data=data, pop_size=pop_size, passive_archive=1)
-        stats = stats.add_stats(new_stats)  # Update stats
+        stats.add_stats(new_stats)  # Update stats
     plot_standard_results(stats)
 
 
@@ -335,4 +335,4 @@ def basic_moead(generations, pop_size, data=None):
 
 
 if __name__ == '__main__':
-    dynamic_size(200, 200, [36, 34])
+    dynamic_size(100, 200, [36, 30])
