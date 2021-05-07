@@ -17,10 +17,10 @@ class Statistics:
         :param other: Other statistics class to combine
         :return:
         """
-        self.prop_non_dom = np.concatenate(self.prop_non_dom, other.prop_non_dom)
-        self.mn = np.concatenate(self.mn, other.mn)
-        self.hv = np.concatenate(self.hv, other.hv)
-        self.ry_repeats = np.concatenate(self.ry_repeats, other.prop_non_dom)
+        self.prop_non_dom = np.concatenate((self.prop_non_dom, other.prop_non_dom))
+        self.mn = np.concatenate((self.mn, other.mn))
+        self.hv = np.concatenate((self.hv, other.hv))
+        self.ry_repeats = np.concatenate((self.ry_repeats, other.ry_repeats))
 
 
 def NSGA3(generations, cost_function, crossover_function, mutation_function,
