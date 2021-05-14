@@ -25,6 +25,11 @@ class Solution:
 
 
 def plot_standard_results(results):
+    """
+    Plots useful statistics from NSGA-III
+    :param results: Statistics class instance from NSGA-III function
+    :return:
+    """
     plt.figure(1)
     plt.title("Hypervolume over generations")
     plt.xlabel("Generation")
@@ -69,6 +74,10 @@ def plot_standard_results(results):
 
 
 def structured_points_analysis():
+    """
+    Tests various structured point hyperparameters
+    :return: Matrix of hypervolume values from experiment
+    """
     penalties = np.array([0.1, 0.1, 0.1])
     struc_hv = np.zeros((5, 5))
     for i in range(5):  # Value of boundary_p (+1)
@@ -94,6 +103,12 @@ def structured_points_analysis():
 
 
 def adjustable_structure_points(boundary, inside):
+    """
+    Performs NSGA-III with variable structure points
+    :param boundary: Number of divisions (p) on boundary
+    :param inside: Number of divisions (p) inside
+    :return: Statistics from NSGA-III experiment
+    """
     penalties = np.array([0.1, 0.1, 0.1])
     self_gen = get_sample(alpha=0.1, penalties=penalties)
 
@@ -291,6 +306,13 @@ def dynamic_size(generations, pop_size, sizes, boundary=3, inside=2):
 
 
 def basic_nsga3(generations, pop_size, data=None):
+    """
+    Performs NSGA-III with default hyperparameters
+    :param generations: Number of generations to run NSGA-III
+    :param pop_size: Population size
+    :param data: Optional pre-generated starting data
+    :return: Statistics from experiment
+    """
     penalties = np.array([0.1, 0.1, 0.1])
     if not data:
         data = get_sample(alpha=0.1, penalties=penalties)
@@ -308,6 +330,13 @@ def basic_nsga3(generations, pop_size, data=None):
 
 
 def basic_nsga2(generations, pop_size, data=None):
+    """
+    Performs NSGA-II with default hyperparameters
+    :param generations: Number of generations to run NSGA-II
+    :param pop_size: Population size
+    :param data: Optional pre-generated starting data
+    :return: Statistics from experiment
+    """
     penalties = np.array([0.1, 0.1, 0.1])
     if not data:
         data = get_sample(alpha=0.1, penalties=penalties)
@@ -320,6 +349,13 @@ def basic_nsga2(generations, pop_size, data=None):
 
 
 def basic_moead(generations, pop_size, data=None):
+    """
+    Performs MOEA/D with default hyperparameters
+    :param generations: Number of generations to run MOEA/D
+    :param pop_size: Population size
+    :param data: Optional pre-generated starting data
+    :return: Statistics from experiment
+    """
     penalties = np.array([0.1, 0.1, 0.1])
     if not data:
         data = get_sample(alpha=0.1, penalties=penalties)
