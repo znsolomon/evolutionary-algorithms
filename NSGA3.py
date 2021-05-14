@@ -5,6 +5,10 @@ from recursive_parento_shell_with_duplicates import recursive_pareto_shell_with_
 
 
 class Statistics:
+    """
+    Class that stores statistics from the running of an evolutionary algorithm
+    Initialises with values set to None, which are filled in through the experiment
+    """
     def __init__(self):
         self.prop_non_dom = None  # Proportion of nondominated solutions each generation
         self.mn = None  # Minimum value of Y (objective values) each generation
@@ -102,18 +106,6 @@ def NSGA3(generations, cost_function, crossover_function, mutation_function,
             stats.mn[g, :] = np.amin(Y, axis=0)
             stats.hv[g] = est_hv(Y)
             stats.ry_repeats[g] = Ry_repeats
-            """ If counting repeats in P and Y, use:
-            repeats = []
-            for i in range(len(P)):
-                if not i in repeats:
-                    solution = P[i]
-                    for j in range(len(P)):
-                        if i != j:
-                            compare = P[j]
-                            if solution.compare_to(compare):
-                                repeats.append(j)
-            results.p_repeats[g] = len(repeats) / len(P)
-            results.y_repeats[g] = len(np.unique(Y, axis=0)) / len(Y)"""
 
             if g % 10 == 0:
                 print(f"Prop non-dominated {stats.prop_non_dom[g]}, "

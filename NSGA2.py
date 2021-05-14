@@ -28,7 +28,6 @@ def NSGA2(generations, cost_function, crossover_function, mutation_function,
     results = Structure of various recorded statistics
     """
 
-    structure_flag = 0
     P = []
     stats = Statistics()
     start_point = 0
@@ -71,7 +70,7 @@ def NSGA2(generations, cost_function, crossover_function, mutation_function,
         if g % 10 == 0:
             print(f"generation {g}, pop_size {pop_size}, passive archive size {len(Ya)} \n")
         [P, Y, Pa, Ya, Ry_repeats] = evolve(P, Y, pop_size, cost_function, crossover_function,
-                                                mutation_function, structure_flag, data, Pa, Ya, passive_archive)
+                                                mutation_function, data, Pa, Ya, passive_archive)
         if passive_archive:
             stats.prop_non_dom[g] = len(Pa) / len(Y)
             stats.mn[g, :] = np.amin(Y, axis=0)
@@ -85,8 +84,7 @@ def NSGA2(generations, cost_function, crossover_function, mutation_function,
     return [P, Y, Pa, Ya, stats]
 
 
-def evolve(P, Y, N, cost_function, crossover_function, mutation_function,
-           structure_flag, data, Pa, Ya, passive_archive):
+def evolve(P, Y, N, cost_function, crossover_function, mutation_function, data, Pa, Ya, passive_archive):
     """
     Evolves the population.
     :param P: Population of solutions
@@ -95,8 +93,6 @@ def evolve(P, Y, N, cost_function, crossover_function, mutation_function,
     :param cost_function: supportFunctions.py cost()
     :param crossover_function: supportFunctions.py crossover()
     :param mutation_function: supportFunctions.py swap_mutation()
-    :param structure_flag:
-        Shows if we are using pre-supplied points or structure points created at the algorithm's start
     :param data: Data class instance containing information about the problem
     :param Pa: Current non-dominated set of P
     :param Ya: Objective values of current non-dominated set

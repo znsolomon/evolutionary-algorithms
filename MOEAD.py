@@ -1,7 +1,7 @@
 import numpy as np
-from pymoo.factory import get_performance_indicator
 
 from recursive_parento_shell_with_duplicates import recursive_pareto_shell_with_duplicates
+from NSGA3 import perpendicular_distance, est_hv, get_structure_points
 
 
 class Statistics:
@@ -91,100 +91,12 @@ def MOEAD(generations, cost_function, crossover_function, mutation_function,
             stats.mn[g, :] = np.amin(Y, axis=0)
             stats.hv[g] = est_hv(Y)
             stats.ry_repeats[g] = Ry_repeats
-            """ If counting repeats in P and Y, use:
-            repeats = []
-            for i in range(len(P)):
-                if not i in repeats:
-                    solution = P[i]
-                    for j in range(len(P)):
-                        if i != j:
-                            compare = P[j]
-                            if solution.compare_to(compare):
-                                repeats.append(j)
-            results.p_repeats[g] = len(repeats) / len(P)
-            results.y_repeats[g] = len(np.unique(Y, axis=0)) / len(Y)"""
 
             if g % 10 == 0:
                 print(f"Prop non-dominated {stats.prop_non_dom[g]}, "
                       f"hypervolume {stats.hv[g]}\n")
 
     return [P, Y, Zsa, Pa, Ya, stats]
-
-
-def est_hv(Y):
-    """
-    Gets hypervolume estimate from population
-    :param Y: Population objective values
-    :return: Hypervolume estimate
-    """
-    # Find reference point: 1.1 * largest point in each generation
-    ref_point = 1.1 * np.amax(Y, axis=0)
-    # Find hypervolume given reference point
-    hv = get_performance_indicator("hv", ref_point=ref_point)
-    return "{:.16f}".format(float(hv.calc(Y)))
-
-
-def get_structure_points(M, boundary_p, inside_p):
-    """
-    Place reference points on a normalised hyperplane
-    :param M: Number of objectives
-    :param boundary_p: Number of divisions for each objective axis (on the boundary)
-    :param inside_p: Number of divisions for each objective axis (inside the hyperplane)
-    :return: Evenly spaced reference points on a normalised hyperplane
-    """
-    Zs = get_simplex_samples(M, boundary_p)
-    Zs_inside = get_simplex_samples(M, inside_p)
-    Zs_inside = Zs_inside / 2  # retract
-    Zs_inside = Zs_inside + 0.5 / M  # project inside
-    Zs = np.append(Zs, Zs_inside)
-
-    return Zs
-
-
-def get_simplex_samples(M, p):
-    """
-    Generate evenly spaced points along a simplex
-    :param M: Number of objectives (dimensions)
-    :param p: Number of divisions for each objective axis
-    :return: Array containing points
-    """
-    lb = np.linspace(0, p)  # Evenly spaced numbers from 0 to p
-    lb = lb / p
-    Zs = []
-
-    for i in range(0, p + 1):  # for lambda in turn
-        tmp = np.zeros((M, 1))  # initialise holder for reference point
-        tmp = fill_sample(tmp, lb, i, 0, M)
-        Zs = np.append(Zs, tmp)
-
-    return Zs
-
-
-def fill_sample(tmp, lb, lambda_index, layer_processing, M):
-    """
-    Fills a reference point with the correct values
-    :param tmp: Reference point to be filled
-    :param lb: Evenly spaced numbers from 0 to p
-    :param lambda_index: which value of lb is currently being processed
-    :param layer_processing: Which layer the recursive algorithm is currently on (starts at 0)
-    :param M: Number of objectives
-    :return: M-dimensional reference point
-    """
-    tmp[layer_processing] = lb[lambda_index]  # Sets current layer of tmp to current lambda
-    if layer_processing < M - 2:  # For each layer but the second-last and last
-        already_used = sum(tmp[0:layer_processing])  # Values of tmp already filled
-        # identify valid fillers that can be used:
-        valid_indices = np.where(lb <= 1 - already_used + np.finfo(float).eps)
-        tmp_processed = np.array([])
-        for j in range(len(valid_indices)):
-            tmp_new = tmp
-            recursive_matrix = fill_sample(tmp_new, lb, j, layer_processing + 1, M)
-            tmp_processed = np.append(tmp_processed, recursive_matrix)
-    else:  # Second-last (M-1th) layer being processed so last element has to complete sum
-        tmp_processed = tmp
-        tmp_processed[M-1] = 1 - sum(tmp[0:M - 2])
-
-    return tmp_processed
 
 
 def nondominated_sort(Ry):
@@ -299,19 +211,6 @@ def evolve(Zsa, P, Y, N, cost_function, crossover_function, mutation_function,
         Y = Ry[S.astype(int), :]
 
     return [P, Y, Pa, Ya, ry_repeats]
-
-
-def perpendicular_distance(direction, point):
-    """
-    Calculates perpendicular distance between direction and point.
-    :param direction:
-    :param point:
-    :return:
-    """
-    norm_sq = np.linalg.norm(point) ** 2
-    sw = np.multiply(direction, point)
-    wtsw = np.multiply(np.transpose(point), sw)
-    return np.linalg.norm((direction - wtsw) / norm_sq)
 
 
 def associate(S, Yn, Zr):
