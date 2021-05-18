@@ -2,7 +2,7 @@ import numpy as np
 from pymoo.factory import get_performance_indicator
 
 from NSGA3 import Statistics, nondominated_sort, est_hv
-from recursive_parento_shell_with_duplicates import recursive_pareto_shell_with_duplicates
+from recursiveParentoShellWithDuplicates import recursive_pareto_shell_with_duplicates
 
 
 def NSGA2(generations, cost_function, crossover_function, mutation_function,

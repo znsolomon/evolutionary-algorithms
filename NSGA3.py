@@ -1,7 +1,7 @@
 import numpy as np
 from pymoo.factory import get_performance_indicator
 
-from recursive_parento_shell_with_duplicates import recursive_pareto_shell_with_duplicates
+from recursiveParentoShellWithDuplicates import recursive_pareto_shell_with_duplicates
 
 
 class Statistics:
