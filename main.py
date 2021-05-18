@@ -371,4 +371,4 @@ def basic_moead(generations, pop_size, data=None):
 
 
 if __name__ == '__main__':
-    dynamic_size(100, 200, [36, 30])
+    plot_standard_results(basic_nsga3(200, 200))
