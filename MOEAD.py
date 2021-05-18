@@ -1,6 +1,6 @@
 import numpy as np
 
-from recursive_parento_shell_with_duplicates import recursive_pareto_shell_with_duplicates
+from recursiveParentoShellWithDuplicates import recursive_pareto_shell_with_duplicates
 from NSGA3 import perpendicular_distance, est_hv, get_structure_points
 
 
