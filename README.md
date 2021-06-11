@@ -1,4 +1,5 @@
-# ID 1785533 Evolutionary Algorithms code
+# University Final year project: Evolutionary Algorithms code
+A project for solving the Teaching Allocation problem using NSGA-III, the state-of-the-art multi-objective evolutionary algorithm. This was the subject of my final year project at the University of Birmingham's Artificial Intelligence and Computer Science course.
 ## File descriptions
 - `main.py`: Starting point for all experiments, containing calls to all other files.
 - `generateData.py`: Creates the `Data` class instance used for every test of the Teaching Allocation problem
